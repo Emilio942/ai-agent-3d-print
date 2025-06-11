@@ -1,0 +1,370 @@
+# Verbesserte Aufgabenliste - AI Agent 3D Print System
+(python)
+Diese Liste ist granular aufgebaut mit messbaren Ergebnissen und robusteren Spezifikationen für eine KI-gesteuerte Umsetzung.
+
+***
+
+## Phase 0: Projekt-Setup & Framework-Entscheidung
+
+### **Aufgabe 0.1: Tech-Stack-Analyse & Entscheidung**
+* **Beschreibung:**
+    Analysiere die Projektanforderungen und wähle konkrete Technologien basierend auf Verfügbarkeit, Dokumentation und Community-Support.
+* **Spezifikationen:**
+    - Python 3.9+ als Hauptsprache
+    - CAD-Bibliothek: FreeCAD Python API oder OpenSCAD mit Python-Wrapper
+    - Slicer: PrusaSlicer CLI oder Cura Engine
+    - NLP: spaCy oder Transformers (Hugging Face)
+    - Kommunikation: FastAPI + WebSocket für App-Backend
+    - Serialisierung: pyserial für Drucker-Kommunikation
+* **Abschluss-Statement:**
+    Dokument `tech_stack.md` mit Begründungen existiert. `requirements.txt` und `config.yaml` sind erstellt.
+
+### **Aufgabe 0.2: Projekt-Struktur & Konfiguration**
+* **Beschreibung:**
+    Erstelle die Grundstruktur und zentrale Konfigurationsverwaltung.
+* **Verzeichnisstruktur:**
+    ```
+    project/
+    ├── core/           # Basis-Klassen und gemeinsame Funktionen
+    ├── agents/         # Spezialisierte Agenten
+    ├── config/         # Konfigurationsdateien
+    ├── tests/          # Unit- und Integrationstests
+    ├── logs/           # Log-Dateien
+    ├── data/           # Temporäre Dateien (STL, G-Code)
+    └── android/        # Android-App-Code
+    ```
+* **Abschluss-Statement:**
+    Verzeichnisstruktur existiert. `config/settings.yaml` mit allen konfigurierbaren Parametern ist erstellt.
+
+### **Aufgabe 0.3: Logging & Error Handling Framework**
+* **Beschreibung:**
+    Implementiere strukturiertes Logging und zentrale Fehlerbehandlung.
+* **Spezifikationen:**
+    - Python `logging` mit JSON-Format
+    - Log-Level: DEBUG, INFO, WARNING, ERROR, CRITICAL
+    - Separate Log-Dateien pro Agent
+    - Custom Exception-Klassen für jeden Agent-Typ
+* **Abschluss-Statement:**
+    `core/logger.py` und `core/exceptions.py` existieren. Alle Agenten loggen strukturiert.
+
+***
+
+## Phase 1: Kern-Architektur & Agenten-Framework
+
+### **Aufgabe 1.1: BaseAgent mit Error Handling**
+* **Beschreibung:**
+    Erweiterte Basisklasse mit Retry-Mechanismen und Validierung.
+* **Interface:**
+    ```python
+    class BaseAgent(ABC):
+        @abstractmethod
+        def execute_task(self, task_details: dict) -> dict
+        def validate_input(self, task_details: dict) -> bool
+        def handle_error(self, error: Exception) -> dict
+        def retry_task(self, task_details: dict, max_retries: int = 3) -> dict
+    ```
+* **Abschluss-Statement:**
+    `core/base_agent.py` mit vollständiger Implementierung existiert. Unit Tests bestehen.
+
+### **Aufgabe 1.2: Message Queue mit Prioritäten**
+* **Beschreibung:**
+    Erweiterte Queue mit Prioritäten, Status-Tracking und Persistierung.
+* **Features:**
+    - Job-Prioritäten (LOW, NORMAL, HIGH, CRITICAL)
+    - Status-Tracking (PENDING, RUNNING, COMPLETED, FAILED)
+    - Optional: Redis-Backend für Persistierung
+* **Abschluss-Statement:**
+    `core/job_queue.py` mit Priority-Queue implementiert. Jobs können verfolgt werden.
+
+### **Aufgabe 1.3: ParentAgent mit Orchestrierung**
+* **Beschreibung:**
+    Erweiterte Orchestrierung mit Workflow-Management und Rollback-Fähigkeiten.
+* **Features:**
+    - Workflow-Definitionen in YAML
+    - Agent-Registry für dynamisches Laden
+    - Rollback bei Fehlern
+    - Progress-Tracking
+* **Abschluss-Statement:**
+    `agents/parent_agent.py` mit vollständiger Orchestrierung. Workflow-Tests bestehen.
+
+### **Aufgabe 1.4: API-Schema Definition**
+* **Beschreibung:**
+    Definiere einheitliche Datenstrukturen für Agent-Kommunikation.
+* **Schemas:**
+    ```python
+    TaskRequest = {
+        "task_id": str,
+        "agent_type": str,
+        "input_data": dict,
+        "priority": int,
+        "timeout": int
+    }
+    TaskResponse = {
+        "task_id": str,
+        "status": str,
+        "result_data": dict,
+        "error_message": str,
+        "execution_time": float
+    }
+    ```
+* **Abschluss-Statement:**
+    `core/schemas.py` mit Pydantic-Models existiert. Validierung funktioniert.
+
+***
+
+## Phase 2: Entwicklung der Sub-Agenten
+
+### **Sub-Agent 1: Research & Concept Agent**
+
+#### **Aufgabe 2.1.1: NLP Intent Recognition mit Fallback**
+* **Beschreibung:**
+    Robuste Intent-Extraktion mit mehreren Backup-Strategien.
+* **Features:**
+    - Primary: spaCy NER + Pattern Matching
+    - Fallback: Regex-basierte Extraktion
+    - Konfiguierbare Intent-Templates
+* **Output-Schema:**
+    ```python
+    {
+        "object_type": str,
+        "dimensions": {"x": float, "y": float, "z": float},
+        "material_type": str,
+        "special_features": list,
+        "confidence": float
+    }
+    ```
+* **Abschluss-Statement:**
+    `agents/research_agent.py` mit `extract_intent()` implementiert. Mindestens 80% Erfolgsrate bei Test-Inputs.
+
+#### **Aufgabe 2.1.2: Web Research mit Rate Limiting**
+* **Beschreibung:**
+    Sichere Web-Suche mit Caching und Rate-Limiting.
+* **Features:**
+    - DuckDuckGo API (keine API-Key erforderlich)
+    - Lokales Caching für 24h
+    - Rate-Limiting: max 10 Requests/Minute
+    - Content-Summarization mit Transformers
+* **Abschluss-Statement:**
+    `research(keywords: list) -> str` funktioniert. Cache reduziert redundante Anfragen.
+
+#### **Aufgabe 2.1.3: Design Specification Generator**
+* **Beschreibung:**
+    Generiere vollständige 3D-Design-Spezifikationen aus Intent + Research.
+* **Output-Schema:**
+    ```python
+    {
+        "geometry": {
+            "type": "primitive|composite",
+            "base_shape": str,
+            "dimensions": dict,
+            "modifications": list
+        },
+        "constraints": {
+            "min_wall_thickness": float,
+            "support_needed": bool,
+            "print_orientation": str
+        },
+        "metadata": {
+            "complexity_score": int,
+            "estimated_print_time": str
+        }
+    }
+    ```
+* **Abschluss-Statement:**
+    Agent gibt valide Design-JSONs aus. Schema-Validierung funktioniert.
+
+### **Sub-Agent 2: CAD-Konstrukteur Agent**
+
+#### **Aufgabe 2.2.1: 3D Primitives Library**
+* **Beschreibung:**
+    Robuste 3D-Grundkörper-Generierung mit Parametervalidierung.
+* **Funktionen:**
+    ```python
+    create_cube(x: float, y: float, z: float, center: bool = True)
+    create_cylinder(radius: float, height: float, segments: int = 32)
+    create_sphere(radius: float, segments: int = 32)
+    create_torus(major_radius: float, minor_radius: float)
+    create_cone(base_radius: float, top_radius: float, height: float)
+    ```
+* **Validierung:**
+    - Minimale/maximale Dimensionen
+    - Druckbarkeits-Checks
+    - Material-Volumen-Berechnung
+* **Abschluss-Statement:**
+    `agents/cad_agent.py` mit allen Primitives. Parametervalidierung verhindert ungültige Geometrien.
+
+#### **Aufgabe 2.2.2: Boolean Operations mit Error Recovery**
+* **Beschreibung:**
+    Robuste boolesche Operationen mit Geometrie-Reparatur.
+* **Features:**
+    - Union, Difference, Intersection
+    - Automatische Mesh-Reparatur
+    - Degeneracy-Detection
+    - Fallback auf alternative Algorithmen
+* **Abschluss-Statement:**
+    Boolesche Ops funktionieren auch bei problematischen Geometrien. Auto-Repair verhindert Crashes.
+
+#### **Aufgabe 2.2.3: STL Export mit Qualitätskontrolle**
+* **Beschreibung:**
+    STL-Export mit Mesh-Validierung und Optimierung.
+* **Features:**
+    - Mesh-Qualitäts-Checks (Watertightness, Manifold)
+    - Automatische Reparatur
+    - Konfiguierbare Mesh-Auflösung
+    - File-Size-Optimization
+* **Abschluss-Statement:**
+    `export_to_stl()` erzeugt valide, druckbare STL-Dateien. Qualitäts-Report wird generiert.
+
+### **Sub-Agent 3: Slicer & Printer-Interface Agent**
+
+#### **Aufgabe 2.3.1: Slicer CLI Wrapper mit Profilen**
+* **Beschreibung:**
+    Flexibler Slicer-Wrapper mit vordefinierten Druckerprofilen.
+* **Features:**
+    - Mehrere Slicer-Engines (PrusaSlicer, Cura)
+    - Drucker-Profile (Ender 3, Prusa i3, etc.)
+    - Material-Profile (PLA, PETG, ABS)
+    - Custom-Settings-Override
+* **Configuration:**
+    ```yaml
+    slicer:
+      engine: "prusaslicer"
+      profiles:
+        ender3_pla:
+          nozzle_diameter: 0.4
+          layer_height: 0.2
+          print_speed: 50
+    ```
+* **Abschluss-Statement:**
+    `slice_stl(stl_path, profile_name)` funktioniert mit allen konfigurierten Profilen.
+
+#### **Aufgabe 2.3.2: Serial Communication mit Mock Mode**
+* **Beschreibung:**
+    Serielle Kommunikation mit Simulator für Testing.
+* **Features:**
+    - Echter Serial Port Support
+    - Virtual/Mock Printer für Tests
+    - Connection Monitoring
+    - Auto-Reconnect bei Verbindungsabbruch
+* **Mock Printer:**
+    - Simuliert G-Code-Responses
+    - Configurable Delays
+    - Error-Injection für Tests
+* **Abschluss-Statement:**
+    `PrinterConnection` funktioniert real und simuliert. Auto-Reconnect verhindert Abbrüche.
+
+#### **Aufgabe 2.3.3: G-Code Streaming mit Progress Tracking**
+* **Beschreibung:**
+    Robustes G-Code-Streaming mit detailliertem Progress-Tracking.
+* **Features:**
+    - Line-by-line Streaming
+    - Checksum-Validierung
+    - Progress-Callbacks
+    - Pause/Resume-Funktionalität
+    - Emergency-Stop
+* **Progress-Data:**
+    ```python
+    {
+        "lines_total": int,
+        "lines_sent": int,
+        "progress_percent": float,
+        "estimated_remaining": str,
+        "current_command": str
+    }
+    ```
+* **Abschluss-Statement:**
+    `stream_gcode()` mit Progress-Tracking und Pause/Resume funktioniert.
+
+***
+
+## Phase 3: Testing & Validation
+
+### **Aufgabe 3.1: Unit Tests für alle Agenten**
+* **Coverage:** Mindestens 80% Code-Coverage
+* **Test-Scenarios:** Happy Path, Error Cases, Edge Cases
+* **Mocking:** Externe Dependencies (Web API, Serial Port)
+* **Abschluss-Statement:**
+    Alle Tests laufen durch. Coverage-Report zeigt >80%.
+
+### **Aufgabe 3.2: Integration Tests**
+* **End-to-End Tests:** Vollständiger Workflow ohne echte Hardware
+* **Performance Tests:** Timing für jeden Agent
+* **Stress Tests:** Mehrere gleichzeitige Anfragen
+* **Abschluss-Statement:**
+    Integration-Tests validieren den kompletten Workflow.
+
+***
+
+## Phase 4: API & Communication Layer
+
+### **Aufgabe 4.1: FastAPI Backend mit WebSocket**
+* **Beschreibung:**
+    REST API + WebSocket für Real-time Communication.
+* **Endpoints:**
+    - `POST /api/print-request` - Neuen Druckauftrag starten
+    - `GET /api/status/{job_id}` - Job-Status abfragen
+    - `WebSocket /ws/progress` - Real-time Progress Updates
+* **Abschluss-Statement:**
+    API läuft und kann von externer App angesprochen werden.
+
+### **Aufgabe 4.2: Android App Kommunikation (Optional)**
+* **Beschreibung:**
+    Alternativ: Web-App statt Android für einfachere Umsetzung.
+* **Features:**
+    - Text-Input für Druckanfragen
+    - Real-time Status-Updates
+    - Progress-Anzeige
+    - Error-Handling
+* **Abschluss-Statement:**
+    Frontend kommuniziert erfolgreich mit Backend. User kann Druckaufträge absetzen.
+
+***
+
+## Phase 5: Orchestrierung & Final Integration
+
+### **Aufgabe 5.1: Complete Workflow Implementation**
+* **Workflow:**
+    1. User Input → Research Agent
+    2. Research Result → CAD Agent  
+    3. STL File → Slicer Agent
+    4. G-Code → Printer Agent
+    5. Progress Updates → User Interface
+* **Error Handling:** Robuste Behandlung von Fehlern in jedem Schritt
+* **Rollback:** Cleanup bei Fehlern
+* **Abschluss-Statement:**
+    `main.py` startet das System. End-to-End-Test "Drucke einen 2cm Würfel" funktioniert komplett.
+
+### **Aufgabe 5.2: Production Readiness**
+* **Configuration Management:** Umgebungs-spezifische Configs
+* **Monitoring:** Health-Checks für alle Services
+* **Documentation:** API-Docs und Deployment-Guide
+* **Abschluss-Statement:**
+    System ist deployment-ready mit vollständiger Dokumentation.
+
+***
+
+## Zusätzliche Verbesserungen
+
+### **Aufgabe X.1: Advanced Features (Optional)**
+* **Multi-Material Support:** Mehrfarbige Drucke
+* **AI-Enhanced Design:** LLM für Design-Verbesserungen  
+* **Print Preview:** 3D-Visualisierung vor dem Druck
+* **Historical Data:** Learning aus vergangenen Drucken
+
+### **Aufgabe X.2: Security & Performance**
+* **Input Sanitization:** Schutz vor Injection-Attacks
+* **Rate Limiting:** API-Schutz
+* **Caching Strategy:** Performance-Optimierung
+* **Resource Management:** Memory/CPU-Limits
+
+***
+
+## Erfolgskriterien
+
+1. **Funktionalität:** User kann via Text 3D-Objekte drucken lassen
+2. **Robustheit:** System erholt sich von Fehlern automatisch
+3. **Testbarkeit:** Umfassende Test-Suite vorhanden
+4. **Wartbarkeit:** Klare Struktur und Dokumentation
+5. **Erweiterbarkeit:** Neue Agenten können einfach hinzugefügt werden
+
+Diese verbesserte Liste adressiert die Schwächen der ursprünglichen Version und macht das Projekt deutlich robuster und wartbarer.

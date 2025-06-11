@@ -1,0 +1,63 @@
+# AI Agent 3D Print System - Development Configuration
+# This file contains development-specific overrides
+
+app:
+  environment: "development"
+  debug: true
+  log_level: "DEBUG"
+
+api:
+  host: "localhost"
+  port: 8000
+  workers: 1
+  reload: true
+  cors_origins:
+    - "http://localhost:3000"
+    - "http://localhost:8080"
+    - "http://127.0.0.1:3000"
+    - "http://127.0.0.1:8080"
+
+database:
+  echo: true  # Enable SQL debugging in development
+  url: "sqlite:///./data/dev_ai_3d_print.db"
+
+agents:
+  research:
+    mock_mode: true
+    web_research:
+      cache_enabled: true
+      cache_ttl: 300  # 5 minutes for faster development iteration
+  
+  cad:
+    mock_mode: false  # Use real CAD operations for testing
+    
+  slicer:
+    mock_mode: true  # Use mock mode to avoid requiring actual slicer installation
+    
+  printer:
+    mock_mode: true  # Always use mock printer in development
+
+logging:
+  level: "DEBUG"
+  console_enabled: true
+  file_enabled: true
+
+development:
+  auto_reload: true
+  debug_toolbar: true
+  sql_echo: true
+  mock_external_services: true
+  test_data_enabled: true
+  hot_reload_templates: true
+
+monitoring:
+  health_check_enabled: true
+  health_check_interval: 30  # More frequent checks in development
+  metrics_enabled: true
+  prometheus_enabled: false  # Disable Prometheus in development
+
+security:
+  api_key_enabled: false  # Disable API keys for easier development
+  jwt_enabled: false
+  input_validation:
+    sanitize_input: false  # Less strict validation for development

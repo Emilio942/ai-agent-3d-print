@@ -1,0 +1,450 @@
+{
+  "project": {
+    "name": "AI Agent 3D Print System",
+    "description": "Multi-Agent System für automatische 3D-Modell-Erstellung und -Druck basierend auf Texteingabe",
+    "version": "1.0.0",
+    "target_workflow": "Text Input → Automatischer 3D-Druck"
+  },
+  "phases": [
+    {
+      "id": "phase_0",
+      "name": "Projekt-Setup & Framework-Entscheidung",
+      "description": "Technologische Basis schaffen",
+      "tasks": [
+        {
+          "id": "0.1",
+          "title": "Tech-Stack-Analyse & Entscheidung",
+          "description": "Analysiere Projektanforderungen und wähle konkrete Technologien",
+          "specifications": {
+            "python_version": "3.9+",
+            "cad_library": ["FreeCAD Python API", "OpenSCAD mit Python-Wrapper"],
+            "slicer": ["PrusaSlicer CLI", "Cura Engine"],
+            "nlp": ["spaCy", "Transformers (Hugging Face)"],
+            "communication": "FastAPI + WebSocket",
+            "serial": "pyserial"
+          },
+          "deliverables": [
+            "tech_stack.md mit Begründungen",
+            "requirements.txt",
+            "config.yaml"
+          ],
+          "success_criteria": "Dokument und Config-Dateien existieren"
+        },
+        {
+          "id": "0.2",
+          "title": "Projekt-Struktur & Konfiguration",
+          "description": "Grundstruktur und zentrale Konfigurationsverwaltung erstellen",
+          "directory_structure": {
+            "core/": "Basis-Klassen und gemeinsame Funktionen",
+            "agents/": "Spezialisierte Agenten",
+            "config/": "Konfigurationsdateien",
+            "tests/": "Unit- und Integrationstests",
+            "logs/": "Log-Dateien",
+            "data/": "Temporäre Dateien (STL, G-Code)",
+            "android/": "Android-App-Code"
+          },
+          "deliverables": [
+            "Verzeichnisstruktur",
+            "config/settings.yaml mit konfigurierbaren Parametern"
+          ],
+          "success_criteria": "Vollständige Projektstruktur existiert"
+        },
+        {
+          "id": "0.3",
+          "title": "Logging & Error Handling Framework",
+          "description": "Strukturiertes Logging und zentrale Fehlerbehandlung implementieren",
+          "specifications": {
+            "format": "JSON-Format",
+            "levels": ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+            "separation": "Separate Log-Dateien pro Agent",
+            "exceptions": "Custom Exception-Klassen für jeden Agent-Typ"
+          },
+          "deliverables": [
+            "core/logger.py",
+            "core/exceptions.py"
+          ],
+          "success_criteria": "Alle Agenten loggen strukturiert"
+        }
+      ]
+    },
+    {
+      "id": "phase_1",
+      "name": "Kern-Architektur & Agenten-Framework",
+      "description": "Skelett des Systems bauen",
+      "tasks": [
+        {
+          "id": "1.1",
+          "title": "BaseAgent mit Error Handling",
+          "description": "Erweiterte Basisklasse mit Retry-Mechanismen und Validierung",
+          "interface": {
+            "class": "BaseAgent",
+            "abstract_methods": ["execute_task"],
+            "methods": [
+              "validate_input(task_details: dict) -> bool",
+              "handle_error(error: Exception) -> dict",
+              "retry_task(task_details: dict, max_retries: int = 3) -> dict"
+            ]
+          },
+          "deliverables": ["core/base_agent.py"],
+          "success_criteria": "Vollständige Implementierung mit Unit Tests"
+        },
+        {
+          "id": "1.2",
+          "title": "Message Queue mit Prioritäten",
+          "description": "Erweiterte Queue mit Prioritäten, Status-Tracking und Persistierung",
+          "features": {
+            "priorities": ["LOW", "NORMAL", "HIGH", "CRITICAL"],
+            "status_tracking": ["PENDING", "RUNNING", "COMPLETED", "FAILED"],
+            "persistence": "Optional: Redis-Backend"
+          },
+          "deliverables": ["core/job_queue.py"],
+          "success_criteria": "Priority-Queue implementiert, Jobs können verfolgt werden"
+        },
+        {
+          "id": "1.3",
+          "title": "ParentAgent mit Orchestrierung",
+          "description": "Erweiterte Orchestrierung mit Workflow-Management und Rollback-Fähigkeiten",
+          "features": [
+            "Workflow-Definitionen in YAML",
+            "Agent-Registry für dynamisches Laden",
+            "Rollback bei Fehlern",
+            "Progress-Tracking"
+          ],
+          "deliverables": ["agents/parent_agent.py"],
+          "success_criteria": "Vollständige Orchestrierung, Workflow-Tests bestehen"
+        },
+        {
+          "id": "1.4",
+          "title": "API-Schema Definition",
+          "description": "Einheitliche Datenstrukturen für Agent-Kommunikation definieren",
+          "schemas": {
+            "TaskRequest": {
+              "task_id": "str",
+              "agent_type": "str",
+              "input_data": "dict",
+              "priority": "int",
+              "timeout": "int"
+            },
+            "TaskResponse": {
+              "task_id": "str",
+              "status": "str",
+              "result_data": "dict",
+              "error_message": "str",
+              "execution_time": "float"
+            }
+          },
+          "deliverables": ["core/schemas.py"],
+          "success_criteria": "Pydantic-Models existieren, Validierung funktioniert"
+        }
+      ]
+    },
+    {
+      "id": "phase_2",
+      "name": "Entwicklung der Sub-Agenten",
+      "description": "Spezialisierte Agenten implementieren",
+      "sub_agents": [
+        {
+          "id": "research_agent",
+          "name": "Research & Concept Agent",
+          "tasks": [
+            {
+              "id": "2.1.1",
+              "title": "NLP Intent Recognition mit Fallback",
+              "description": "Robuste Intent-Extraktion mit mehreren Backup-Strategien",
+              "features": [
+                "Primary: spaCy NER + Pattern Matching",
+                "Fallback: Regex-basierte Extraktion",
+                "Konfiguierbare Intent-Templates"
+              ],
+              "output_schema": {
+                "object_type": "str",
+                "dimensions": {"x": "float", "y": "float", "z": "float"},
+                "material_type": "str",
+                "special_features": "list",
+                "confidence": "float"
+              },
+              "success_criteria": "80% Erfolgsrate bei Test-Inputs"
+            },
+            {
+              "id": "2.1.2",
+              "title": "Web Research mit Rate Limiting",
+              "description": "Sichere Web-Suche mit Caching und Rate-Limiting",
+              "features": [
+                "DuckDuckGo API (keine API-Key erforderlich)",
+                "Lokales Caching für 24h",
+                "Rate-Limiting: max 10 Requests/Minute",
+                "Content-Summarization mit Transformers"
+              ],
+              "success_criteria": "research() funktioniert, Cache reduziert redundante Anfragen"
+            },
+            {
+              "id": "2.1.3",
+              "title": "Design Specification Generator",
+              "description": "Vollständige 3D-Design-Spezifikationen aus Intent + Research generieren",
+              "output_schema": {
+                "geometry": {
+                  "type": "primitive|composite",
+                  "base_shape": "str",
+                  "dimensions": "dict",
+                  "modifications": "list"
+                },
+                "constraints": {
+                  "min_wall_thickness": "float",
+                  "support_needed": "bool",
+                  "print_orientation": "str"
+                },
+                "metadata": {
+                  "complexity_score": "int",
+                  "estimated_print_time": "str"
+                }
+              },
+              "success_criteria": "Agent gibt valide Design-JSONs aus, Schema-Validierung funktioniert"
+            }
+          ]
+        },
+        {
+          "id": "cad_agent",
+          "name": "CAD-Konstrukteur Agent",
+          "tasks": [
+            {
+              "id": "2.2.1",
+              "title": "3D Primitives Library",
+              "description": "Robuste 3D-Grundkörper-Generierung mit Parametervalidierung",
+              "functions": [
+                "create_cube(x: float, y: float, z: float, center: bool = True)",
+                "create_cylinder(radius: float, height: float, segments: int = 32)",
+                "create_sphere(radius: float, segments: int = 32)",
+                "create_torus(major_radius: float, minor_radius: float)",
+                "create_cone(base_radius: float, top_radius: float, height: float)"
+              ],
+              "validation": [
+                "Minimale/maximale Dimensionen",
+                "Druckbarkeits-Checks",
+                "Material-Volumen-Berechnung"
+              ],
+              "success_criteria": "Alle Primitives implementiert, Parametervalidierung verhindert ungültige Geometrien"
+            },
+            {
+              "id": "2.2.2",
+              "title": "Boolean Operations mit Error Recovery",
+              "description": "Robuste boolesche Operationen mit Geometrie-Reparatur",
+              "features": [
+                "Union, Difference, Intersection",
+                "Automatische Mesh-Reparatur",
+                "Degeneracy-Detection",
+                "Fallback auf alternative Algorithmen"
+              ],
+              "success_criteria": "Boolesche Ops funktionieren auch bei problematischen Geometrien"
+            },
+            {
+              "id": "2.2.3",
+              "title": "STL Export mit Qualitätskontrolle",
+              "description": "STL-Export mit Mesh-Validierung und Optimierung",
+              "features": [
+                "Mesh-Qualitäts-Checks (Watertightness, Manifold)",
+                "Automatische Reparatur",
+                "Konfiguierbare Mesh-Auflösung",
+                "File-Size-Optimization"
+              ],
+              "success_criteria": "export_to_stl() erzeugt valide, druckbare STL-Dateien"
+            }
+          ]
+        },
+        {
+          "id": "slicer_printer_agent",
+          "name": "Slicer & Printer-Interface Agent",
+          "tasks": [
+            {
+              "id": "2.3.1",
+              "title": "Slicer CLI Wrapper mit Profilen",
+              "description": "Flexibler Slicer-Wrapper mit vordefinierten Druckerprofilen",
+              "features": [
+                "Mehrere Slicer-Engines (PrusaSlicer, Cura)",
+                "Drucker-Profile (Ender 3, Prusa i3, etc.)",
+                "Material-Profile (PLA, PETG, ABS)",
+                "Custom-Settings-Override"
+              ],
+              "configuration_example": {
+                "slicer": {
+                  "engine": "prusaslicer",
+                  "profiles": {
+                    "ender3_pla": {
+                      "nozzle_diameter": 0.4,
+                      "layer_height": 0.2,
+                      "print_speed": 50
+                    }
+                  }
+                }
+              },
+              "success_criteria": "slice_stl() funktioniert mit allen konfigurierten Profilen"
+            },
+            {
+              "id": "2.3.2",
+              "title": "Serial Communication mit Mock Mode",
+              "description": "Serielle Kommunikation mit Simulator für Testing",
+              "features": [
+                "Echter Serial Port Support",
+                "Virtual/Mock Printer für Tests",
+                "Connection Monitoring",
+                "Auto-Reconnect bei Verbindungsabbruch",
+                "USB-Device-Detection (automatisches Scannen)",
+                "Drucker-Auto-Identifikation via Marlin-Commands"
+              ],
+              "mock_printer": [
+                "Simuliert G-Code-Responses",
+                "Configurable Delays",
+                "Error-Injection für Tests"
+              ],
+              "success_criteria": "PrinterConnection funktioniert real und simuliert"
+            },
+            {
+              "id": "2.3.3",
+              "title": "G-Code Streaming mit Progress Tracking",
+              "description": "Robustes G-Code-Streaming mit detailliertem Progress-Tracking",
+              "features": [
+                "Line-by-line Streaming",
+                "Checksum-Validierung",
+                "Progress-Callbacks",
+                "Pause/Resume-Funktionalität",
+                "Emergency-Stop"
+              ],
+              "progress_data": {
+                "lines_total": "int",
+                "lines_sent": "int",
+                "progress_percent": "float",
+                "estimated_remaining": "str",
+                "current_command": "str"
+              },
+              "success_criteria": "stream_gcode() mit Progress-Tracking und Pause/Resume funktioniert"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "phase_3",
+      "name": "Testing & Validation",
+      "description": "Umfassende Tests implementieren",
+      "tasks": [
+        {
+          "id": "3.1",
+          "title": "Unit Tests für alle Agenten",
+          "requirements": {
+            "coverage": "Mindestens 80%",
+            "scenarios": ["Happy Path", "Error Cases", "Edge Cases"],
+            "mocking": ["Web API", "Serial Port"]
+          },
+          "success_criteria": "Alle Tests laufen durch, Coverage-Report zeigt >80%"
+        },
+        {
+          "id": "3.2",
+          "title": "Integration Tests",
+          "test_types": [
+            "End-to-End Tests: Vollständiger Workflow ohne echte Hardware",
+            "Performance Tests: Timing für jeden Agent",
+            "Stress Tests: Mehrere gleichzeitige Anfragen"
+          ],
+          "success_criteria": "Integration-Tests validieren den kompletten Workflow"
+        }
+      ]
+    },
+    {
+      "id": "phase_4",
+      "name": "API & Communication Layer",
+      "description": "Externe Schnittstellen implementieren",
+      "tasks": [
+        {
+          "id": "4.1",
+          "title": "FastAPI Backend mit WebSocket",
+          "description": "REST API + WebSocket für Real-time Communication",
+          "endpoints": [
+            "POST /api/print-request - Neuen Druckauftrag starten",
+            "GET /api/status/{job_id} - Job-Status abfragen",
+            "WebSocket /ws/progress - Real-time Progress Updates"
+          ],
+          "success_criteria": "API läuft und kann von externer App angesprochen werden"
+        },
+        {
+          "id": "4.2",
+          "title": "Frontend Kommunikation",
+          "description": "Web-App oder Android für einfachere Umsetzung",
+          "features": [
+            "Text-Input für Druckanfragen",
+            "Real-time Status-Updates",
+            "Progress-Anzeige",
+            "Error-Handling"
+          ],
+          "success_criteria": "Frontend kommuniziert erfolgreich mit Backend"
+        }
+      ]
+    },
+    {
+      "id": "phase_5",
+      "name": "Orchestrierung & Final Integration",
+      "description": "Alles zu einem funktionierenden Ganzen zusammenfügen",
+      "tasks": [
+        {
+          "id": "5.1",
+          "title": "Complete Workflow Implementation",
+          "workflow": [
+            "User Input → Research Agent",
+            "Research Result → CAD Agent",
+            "STL File → Slicer Agent",
+            "G-Code → Printer Agent",
+            "Progress Updates → User Interface"
+          ],
+          "features": [
+            "Robuste Behandlung von Fehlern in jedem Schritt",
+            "Rollback: Cleanup bei Fehlern",
+            "Vollautomatischer Modus ohne weitere Eingaben",
+            "Standard-Profile für häufige Objekte"
+          ],
+          "success_criteria": "End-to-End-Test 'Drucke einen 2cm Würfel' funktioniert komplett"
+        },
+        {
+          "id": "5.2",
+          "title": "Production Readiness",
+          "features": [
+            "Configuration Management: Umgebungs-spezifische Configs",
+            "Monitoring: Health-Checks für alle Services",
+            "Documentation: API-Docs und Deployment-Guide"
+          ],
+          "success_criteria": "System ist deployment-ready mit vollständiger Dokumentation"
+        }
+      ]
+    }
+  ],
+  "additional_features": {
+    "advanced_optional": [
+      "Multi-Material Support: Mehrfarbige Drucke",
+      "AI-Enhanced Design: LLM für Design-Verbesserungen",
+      "Print Preview: 3D-Visualisierung vor dem Druck",
+      "Historical Data: Learning aus vergangenen Drucken"
+    ],
+    "security_performance": [
+      "Input Sanitization: Schutz vor Injection-Attacks",
+      "Rate Limiting: API-Schutz",
+      "Caching Strategy: Performance-Optimierung",
+      "Resource Management: Memory/CPU-Limits"
+    ]
+  },
+  "success_criteria": {
+    "functionality": "User kann via Text 3D-Objekte drucken lassen",
+    "robustness": "System erholt sich von Fehlern automatisch",
+    "testability": "Umfassende Test-Suite vorhanden",
+    "maintainability": "Klare Struktur und Dokumentation",
+    "extensibility": "Neue Agenten können einfach hinzugefügt werden"
+  },
+  "target_user_experience": {
+    "input": "Text: 'Drucke einen 2cm Würfel'",
+    "process": [
+      "System erkennt automatisch angeschlossenen Drucker",
+      "Research Agent versteht: Würfel, 20mm x 20mm x 20mm",
+      "CAD Agent erstellt 3D-Modell",
+      "Slicer Agent macht G-Code mit Standard-Profil",
+      "Printer Agent druckt automatisch"
+    ],
+    "output": "User bekommt Live-Updates über Fortschritt",
+    "goal": "Komplett automatisierter Workflow ohne weitere Eingaben"
+  }
+}

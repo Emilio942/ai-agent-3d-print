@@ -1,0 +1,66 @@
+# AI Agent 3D Print System - Staging Configuration
+# This file contains staging-specific overrides for pre-production testing
+
+app:
+  environment: "staging"
+  debug: false
+  log_level: "INFO"
+
+api:
+  host: "0.0.0.0"
+  port: 8000
+  workers: 2  # Fewer workers than production
+  reload: false
+  cors_origins:
+    - "https://staging-frontend.your-domain.com"
+    - "https://staging-app.your-domain.com"
+
+database:
+  echo: false
+  url: "postgresql://staging_user:staging_pass@localhost/ai_3d_print_staging"
+  pool_size: 10
+  max_overflow: 20
+
+job_queue:
+  type: "redis"
+  redis_url: "redis://localhost:6379/2"  # Different Redis DB
+  max_retries: 3
+  job_timeout: 300
+
+agents:
+  research:
+    mock_mode: false
+    web_research:
+      cache_enabled: true
+      cache_ttl: 1800  # 30 minutes
+  
+  cad:
+    mock_mode: false
+    
+  slicer:
+    mock_mode: false  # Test real slicer in staging
+    
+  printer:
+    mock_mode: true  # Keep printer mocked in staging
+
+logging:
+  level: "INFO"
+  console_enabled: true
+  file_enabled: true
+
+security:
+  api_key_enabled: true
+  jwt_enabled: true
+  jwt_secret: "${STAGING_JWT_SECRET}"
+
+monitoring:
+  health_check_enabled: true
+  health_check_interval: 45
+  metrics_enabled: true
+  prometheus_enabled: true
+  prometheus_port: 9091
+
+cache:
+  type: "redis"
+  redis_url: "redis://localhost:6379/3"
+  default_ttl: 1800  # 30 minutes

@@ -1,0 +1,222 @@
+# AI Agent 3D Print System Configuration
+# Main configuration file for all system components
+
+# Application Settings
+app:
+  name: "AI Agent 3D Print System"
+  version: "0.1.0"
+  environment: "development"  # development, staging, production
+  debug: true
+  log_level: "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+
+# API Configuration
+api:
+  host: "localhost"
+  port: 8000
+  workers: 1
+  reload: true  # Set to false in production
+  cors_origins:
+    - "http://localhost:3000"
+    - "http://localhost:8080"
+  cors_methods:
+    - "GET"
+    - "POST"
+    - "PUT"
+    - "DELETE"
+  rate_limit:
+    enabled: true
+    requests_per_minute: 60
+
+# WebSocket Configuration
+websocket:
+  heartbeat_interval: 30  # seconds
+  max_connections: 100
+  message_size_limit: 1048576  # 1MB
+
+# Database Configuration
+database:
+  type: "sqlite"
+  url: "sqlite:///./data/ai_3d_print.db"
+  echo: false  # Set to true for SQL debugging
+  pool_size: 5
+  max_overflow: 10
+
+# Job Queue Configuration
+job_queue:
+  type: "memory"  # memory, redis
+  redis_url: "redis://localhost:6379/0"  # Used if type is redis
+  max_retries: 3
+  retry_delay: 5  # seconds
+  job_timeout: 300  # seconds (5 minutes)
+  priorities:
+    low: 1
+    normal: 5
+    high: 10
+    critical: 20
+
+# Logging Configuration
+logging:
+  level: "INFO"
+  format: "json"  # json, text
+  file_enabled: true
+  file_path: "./logs"
+  file_max_size: "10MB"
+  file_backup_count: 5
+  console_enabled: true
+  structured: true
+
+# Agent Configuration
+agents:
+  base_timeout: 30  # seconds
+  max_retries: 3
+  retry_delay: 2  # seconds
+  
+  # Research Agent
+  research:
+    enabled: true
+    nlp_model: "en_core_web_sm"  # spaCy model
+    transformers_model: "distilbert-base-uncased"
+    confidence_threshold: 0.7
+    max_search_results: 10
+    cache_duration: 86400  # 24 hours in seconds
+    web_search:
+      enabled: true
+      engine: "duckduckgo"
+      rate_limit: 10  # requests per minute
+      timeout: 30  # seconds
+    
+  # CAD Agent
+  cad:
+    enabled: true
+    library: "freecad"  # freecad, openscad
+    freecad:
+      gui_enabled: false
+      precision: 0.1  # mm
+      max_complexity: 1000  # max number of operations
+    validation:
+      min_wall_thickness: 0.8  # mm
+      max_volume: 1000000  # mm³ (1 liter)
+      check_printability: true
+    export:
+      stl_resolution: 0.1  # mm
+      mesh_quality: "high"  # low, medium, high
+      optimize_size: true
+  
+  # Slicer Agent
+  slicer:
+    enabled: true
+    engine: "prusaslicer"  # prusaslicer, cura
+    prusaslicer:
+      executable_path: "/usr/bin/prusa-slicer"  # Adjust for your system
+      config_path: "./config/slicer_profiles"
+    profiles:
+      default: "ender3_pla_standard"
+      available:
+        ender3_pla_standard:
+          printer: "ender3"
+          material: "PLA"
+          layer_height: 0.2
+          infill: 20
+          supports: true
+        prusa_mk3_petg_quality:
+          printer: "prusa_mk3s"
+          material: "PETG"
+          layer_height: 0.15
+          infill: 25
+          supports: true
+  
+  # Printer Agent
+  printer:
+    enabled: true
+    mock_mode: true  # Set to false for real printer
+    mock_printer:
+      simulate_delays: true
+      simulate_errors: false
+      error_probability: 0.05  # 5% chance of simulated errors
+    serial:
+      port: "/dev/ttyUSB0"  # Adjust for your system
+      baudrate: 115200
+      timeout: 10  # seconds
+      reconnect_attempts: 3
+      reconnect_delay: 5  # seconds
+    gcode:
+      streaming:
+        chunk_size: 1  # lines per transmission
+        ack_timeout: 5  # seconds
+        checksum_enabled: true
+      safety:
+        emergency_stop_enabled: true
+        temperature_monitoring: true
+        max_temp_hotend: 280  # °C
+        max_temp_bed: 110  # °C
+
+# File Management
+files:
+  temp_dir: "./data/temp"
+  output_dir: "./data/output"
+  max_file_size: 104857600  # 100MB
+  allowed_extensions:
+    input: [".txt"]
+    output: [".stl", ".gcode"]
+  cleanup:
+    auto_cleanup: true
+    retention_days: 7
+    max_storage_mb: 1024  # 1GB
+
+# Security Configuration
+security:
+  api_key_enabled: false
+  api_key_header: "X-API-Key"
+  jwt_enabled: false
+  jwt_secret: "your-secret-key-change-in-production"
+  jwt_expiry: 3600  # 1 hour
+  input_validation:
+    max_text_length: 1000
+    sanitize_input: true
+    allowed_characters: "alphanumeric_spaces_basic_punctuation"
+
+# Monitoring & Health Checks
+monitoring:
+  health_check_enabled: true
+  health_check_interval: 60  # seconds
+  metrics_enabled: true
+  prometheus_enabled: false
+  prometheus_port: 9090
+
+# Cache Configuration
+cache:
+  enabled: true
+  type: "memory"  # memory, redis
+  redis_url: "redis://localhost:6379/1"  # Used if type is redis
+  default_ttl: 3600  # 1 hour
+  max_size: 1000  # number of entries for memory cache
+
+# Development Settings
+development:
+  auto_reload: true
+  debug_toolbar: true
+  sql_echo: false
+  mock_external_services: true
+  test_data_enabled: true
+
+# Production Overrides (use environment variables in production)
+production:
+  debug: false
+  log_level: "WARNING"
+  api:
+    workers: 4
+    reload: false
+  security:
+    api_key_enabled: true
+    jwt_enabled: true
+  monitoring:
+    prometheus_enabled: true
+
+# Environment Variable Mapping
+# These settings can be overridden by environment variables:
+# APP_DEBUG=false
+# API_HOST=0.0.0.0
+# DATABASE_URL=postgresql://user:pass@localhost/dbname
+# REDIS_URL=redis://localhost:6379/0
+# PRINTER_PORT=/dev/ttyACM0
+# SLICER_PATH=/usr/local/bin/PrusaSlicer

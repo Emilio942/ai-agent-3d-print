@@ -1,0 +1,100 @@
+{
+  "geometry": {
+    "type": "complex",
+    "primitive_type": null,
+    "dimensions": {
+      "length": 24.0,
+      "width": 24.0,
+      "height": 24.0
+    },
+    "units": "mm",
+    "coordinate_system": "right_handed",
+    "origin": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "materials": {
+    "type": "ABS",
+    "properties": {
+      "density": 1.05,
+      "melting_point": 230,
+      "glass_transition": 105,
+      "shrinkage_factor": 0.008,
+      "tensile_strength": 40,
+      "flexibility": "semi_rigid"
+    },
+    "suitability_score": 9.0,
+    "alternative_materials": [
+      "ABS",
+      "PETG",
+      "Nylon"
+    ]
+  },
+  "manufacturing": {
+    "layer_height": 0.15,
+    "infill_percentage": 100,
+    "wall_count": 4,
+    "top_bottom_layers": 3,
+    "print_speed": 36,
+    "support_required": "auto_detect",
+    "bed_temperature": 100,
+    "enclosure_required": true
+  },
+  "constraints": {
+    "minimum_wall_thickness": 1.5,
+    "minimum_feature_size": 0.75,
+    "maximum_overhang_angle": 45,
+    "maximum_bridge_length": 15,
+    "minimum_hole_diameter": 0.5,
+    "draft_angle": 1,
+    "tolerance": 0.1,
+    "minimum_tooth_thickness": 1.0,
+    "maximum_module": 3.0,
+    "minimum_tooth_count": 8
+  },
+  "features": {},
+  "metadata": {
+    "object_type": "gear",
+    "specification_version": "1.0",
+    "generated_at": "2025-06-10T17:30:52.105892",
+    "analysis_depth": "detailed"
+  },
+  "primitives": [
+    {
+      "type": "cylinder",
+      "name": "gear_blank",
+      "dimensions": {
+        "diameter": 44.0,
+        "height": 5
+      },
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      }
+    }
+  ],
+  "operations": [],
+  "gear_parameters": {
+    "teeth_count": 20,
+    "module": 2.0,
+    "pitch_diameter": 40.0,
+    "outer_diameter": 44.0,
+    "root_diameter": 35.0,
+    "thickness": 5,
+    "pressure_angle": 20,
+    "tooth_profile": "involute"
+  },
+  "design_warnings": [
+    "Complex geometry may require supports"
+  ],
+  "validation": {
+    "validated_at": "2025-06-10T17:30:52.105899",
+    "status": "passed",
+    "warnings": [
+      "Complex geometry may require supports"
+    ]
+  }
+}

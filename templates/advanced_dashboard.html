@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Agent 3D Print - Advanced Dashboard</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .dashboard-container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            color: #7f8c8d;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .feature-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.2);
+        }
+
+        .feature-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .feature-icon {
+            font-size: 2rem;
+            margin-right: 15px;
+            padding: 15px;
+            border-radius: 15px;
+            color: white;
+        }
+
+        .preview-icon { background: linear-gradient(45deg, #3498db, #2980b9); }
+        .ai-icon { background: linear-gradient(45deg, #e74c3c, #c0392b); }
+        .analytics-icon { background: linear-gradient(45deg, #f39c12, #e67e22); }
+        .materials-icon { background: linear-gradient(45deg, #9b59b6, #8e44ad); }
+
+        .feature-title {
+            font-size: 1.5rem;
+            color: #2c3e50;
+            margin: 0;
+        }
+
+        .feature-description {
+            color: #7f8c8d;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+
+        .feature-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .file-upload-area {
+            border: 2px dashed #bdc3c7;
+            border-radius: 10px;
+            padding: 30px;
+            text-align: center;
+            transition: border-color 0.3s ease;
+            cursor: pointer;
+        }
+
+        .file-upload-area:hover {
+            border-color: #3498db;
+        }
+
+        .file-upload-area.dragover {
+            border-color: #e74c3c;
+            background-color: rgba(231, 76, 60, 0.1);
+        }
+
+        .btn {
+            background: linear-gradient(45deg, #3498db, #2980b9);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(52, 152, 219, 0.3);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(45deg, #95a5a6, #7f8c8d);
+        }
+
+        .btn-success {
+            background: linear-gradient(45deg, #27ae60, #2ecc71);
+        }
+
+        .btn-warning {
+            background: linear-gradient(45deg, #f39c12, #e67e22);
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #ecf0f1;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(45deg, #3498db, #2980b9);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-success { background: #27ae60; }
+        .status-warning { background: #f39c12; }
+        .status-error { background: #e74c3c; }
+        .status-info { background: #3498db; }
+
+        .results-area {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            display: none;
+        }
+
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid #ecf0f1;
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            padding: 12px 24px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .tab.active {
+            border-bottom-color: #3498db;
+            color: #3498db;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #3498db;
+        }
+
+        .stat-label {
+            color: #7f8c8d;
+            font-size: 0.9rem;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 10px;
+            color: white;
+            font-weight: bold;
+            z-index: 1000;
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        .notification.success { background: #27ae60; }
+        .notification.error { background: #e74c3c; }
+        .notification.warning { background: #f39c12; }
+        .notification.info { background: #3498db; }
+
+        @media (max-width: 768px) {
+            .feature-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .dashboard-container {
+                padding: 10px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Header -->
+        <div class="header">
+            <h1><i class="fas fa-cube"></i> AI Agent 3D Print System</h1>
+            <p>Advanced Features Dashboard - Multi-Material, AI-Enhanced Design, Preview & Analytics</p>
+        </div>
+
+        <!-- Feature Grid -->
+        <div class="feature-grid">
+            <!-- 3D Print Preview -->
+            <div class="feature-card">
+                <div class="feature-header">
+                    <div class="feature-icon preview-icon">
+                        <i class="fas fa-eye"></i>
+                    </div>
+                    <h2 class="feature-title">3D Print Preview</h2>
+                </div>
+                <p class="feature-description">
+                    Upload STL files and G-code to get interactive 3D previews with layer-by-layer analysis, 
+                    print time estimation, and material usage calculations.
+                </p>
+                <div class="feature-controls">
+                    <div class="file-upload-area" id="previewUpload">
+                        <i class="fas fa-cloud-upload-alt" style="font-size: 2rem; color: #bdc3c7; margin-bottom: 10px;"></i>
+                        <p>Drag & drop STL or G-code files here, or click to browse</p>
+                        <input type="file" id="previewFileInput" accept=".stl,.gcode,.g" style="display: none;">
+                    </div>
+                    <button class="btn" onclick="openPreviewPage()">
+                        <i class="fas fa-external-link-alt"></i> Open Full Preview Interface
+                    </button>
+                    <div class="progress-bar" id="previewProgress" style="display: none;">
+                        <div class="progress-fill"></div>
+                    </div>
+                    <div class="results-area" id="previewResults"></div>
+                </div>
+            </div>
+
+            <!-- AI-Enhanced Design -->
+            <div class="feature-card">
+                <div class="feature-header">
+                    <div class="feature-icon ai-icon">
+                        <i class="fas fa-brain"></i>
+                    </div>
+                    <h2 class="feature-title">AI-Enhanced Design</h2>
+                </div>
+                <p class="feature-description">
+                    Get intelligent design analysis with optimization suggestions, failure prediction, 
+                    and material recommendations powered by machine learning.
+                </p>
+                <div class="feature-controls">
+                    <div class="file-upload-area" id="aiUpload">
+                        <i class="fas fa-magic" style="font-size: 2rem; color: #bdc3c7; margin-bottom: 10px;"></i>
+                        <p>Upload design file for AI analysis</p>
+                        <input type="file" id="aiFileInput" accept=".stl" style="display: none;">
+                    </div>
+                    <button class="btn" onclick="analyzeDesign()">
+                        <i class="fas fa-search"></i> Analyze Design
+                    </button>
+                    <button class="btn btn-secondary" onclick="getDesignInsights()">
+                        <i class="fas fa-lightbulb"></i> Get Insights
+                    </button>
+                    <div class="progress-bar" id="aiProgress" style="display: none;">
+                        <div class="progress-fill"></div>
+                    </div>
+                    <div class="results-area" id="aiResults"></div>
+                </div>
+            </div>
+
+            <!-- Historical Analytics -->
+            <div class="feature-card">
+                <div class="feature-header">
+                    <div class="feature-icon analytics-icon">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <h2 class="feature-title">Historical Analytics</h2>
+                </div>
+                <p class="feature-description">
+                    Track performance metrics, analyze failure patterns, and learn from historical 
+                    data to improve print success rates and efficiency.
+                </p>
+                <div class="feature-controls">
+                    <div class="tabs">
+                        <div class="tab active" onclick="switchTab('performance')">Performance</div>
+                        <div class="tab" onclick="switchTab('learning')">Learning</div>
+                        <div class="tab" onclick="switchTab('failures')">Failures</div>
+                    </div>
+                    <div class="tab-content active" id="performance-tab">
+                        <button class="btn" onclick="loadPerformanceAnalytics()">
+                            <i class="fas fa-tachometer-alt"></i> Load Performance Data
+                        </button>
+                        <div class="stats-grid" id="performanceStats"></div>
+                    </div>
+                    <div class="tab-content" id="learning-tab">
+                        <button class="btn btn-success" onclick="loadLearningAnalytics()">
+                            <i class="fas fa-graduation-cap"></i> Load Learning Insights
+                        </button>
+                        <div class="stats-grid" id="learningStats"></div>
+                    </div>
+                    <div class="tab-content" id="failures-tab">
+                        <button class="btn btn-warning" onclick="loadFailureAnalytics()">
+                            <i class="fas fa-exclamation-triangle"></i> Analyze Failures
+                        </button>
+                        <div class="stats-grid" id="failureStats"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Multi-Material Support -->
+            <div class="feature-card">
+                <div class="feature-header">
+                    <div class="feature-icon materials-icon">
+                        <i class="fas fa-layer-group"></i>
+                    </div>
+                    <h2 class="feature-title">Multi-Material Support</h2>
+                </div>
+                <p class="feature-description">
+                    Advanced multi-material printing with automatic material compatibility checking, 
+                    optimization suggestions, and intelligent material selection.
+                </p>
+                <div class="feature-controls">
+                    <button class="btn" onclick="loadMaterialProfiles()">
+                        <i class="fas fa-database"></i> Load Material Profiles
+                    </button>
+                    <button class="btn btn-secondary" onclick="checkCompatibility()">
+                        <i class="fas fa-check-circle"></i> Check Compatibility
+                    </button>
+                    <button class="btn btn-success" onclick="optimizeMaterials()">
+                        <i class="fas fa-cogs"></i> Optimize Materials
+                    </button>
+                    <div class="results-area" id="materialResults"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Status -->
+        <div class="feature-card">
+            <div class="feature-header">
+                <div class="feature-icon" style="background: linear-gradient(45deg, #2ecc71, #27ae60);">
+                    <i class="fas fa-heartbeat"></i>
+                </div>
+                <h2 class="feature-title">System Status</h2>
+            </div>
+            <div class="stats-grid" id="systemStatus">
+                <div class="stat-card">
+                    <div class="stat-value" id="systemHealth">
+                        <span class="status-indicator status-info"></span>Checking...
+                    </div>
+                    <div class="stat-label">System Health</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="activeJobs">-</div>
+                    <div class="stat-label">Active Jobs</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="successRate">-</div>
+                    <div class="stat-label">Success Rate</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="totalPrints">-</div>
+                    <div class="stat-label">Total Prints</div>
+                </div>
+            </div>
+            <button class="btn" onclick="refreshSystemStatus()">
+                <i class="fas fa-sync-alt"></i> Refresh Status
+            </button>
+        </div>
+    </div>
+
+    <!-- Notification Container -->
+    <div id="notification" class="notification"></div>
+
+    <script>
+        // Global state
+        const state = {
+            currentAnalysis: null,
+            uploadedFiles: {},
+            systemStatus: {},
+            currentTab: 'performance'
+        };
+
+        // API Base URL
+        const API_BASE = window.location.origin;
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeFileUploads();
+            refreshSystemStatus();
+            
+            // Auto-refresh system status every 30 seconds
+            setInterval(refreshSystemStatus, 30000);
+        });
+
+        // File upload handling
+        function initializeFileUploads() {
+            setupFileUpload('previewUpload', 'previewFileInput', handlePreviewFile);
+            setupFileUpload('aiUpload', 'aiFileInput', handleAIFile);
+        }
+
+        function setupFileUpload(areaId, inputId, handler) {
+            const area = document.getElementById(areaId);
+            const input = document.getElementById(inputId);
+
+            area.addEventListener('click', () => input.click());
+            area.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                area.classList.add('dragover');
+            });
+            area.addEventListener('dragleave', () => area.classList.remove('dragover'));
+            area.addEventListener('drop', (e) => {
+                e.preventDefault();
+                area.classList.remove('dragover');
+                handler(e.dataTransfer.files[0]);
+            });
+            input.addEventListener('change', (e) => handler(e.target.files[0]));
+        }
+
+        // Notification system
+        function showNotification(message, type = 'info') {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.className = `notification ${type}`;
+            notification.classList.add('show');
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 4000);
+        }
+
+        // Progress bar utilities
+        function showProgress(progressId) {
+            const progress = document.getElementById(progressId);
+            progress.style.display = 'block';
+            const fill = progress.querySelector('.progress-fill');
+            fill.style.width = '0%';
+            
+            // Simulate progress
+            let width = 0;
+            const interval = setInterval(() => {
+                width += Math.random() * 30;
+                if (width > 90) width = 90;
+                fill.style.width = width + '%';
+                if (width >= 90) clearInterval(interval);
+            }, 200);
+            
+            return interval;
+        }
+
+        function completeProgress(progressId, interval) {
+            const progress = document.getElementById(progressId);
+            const fill = progress.querySelector('.progress-fill');
+            clearInterval(interval);
+            fill.style.width = '100%';
+            setTimeout(() => progress.style.display = 'none', 1000);
+        }
+
+        // File handlers
+        async function handlePreviewFile(file) {
+            if (!file) return;
+            
+            showNotification(`Uploading ${file.name} for preview...`, 'info');
+            const interval = showProgress('previewProgress');
+            
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                
+                const endpoint = file.name.toLowerCase().endsWith('.stl') ? 
+                    '/api/preview/stl/upload' : '/api/preview/gcode/upload';
+                
+                const response = await fetch(API_BASE + endpoint, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                completeProgress('previewProgress', interval);
+                
+                if (response.ok) {
+                    showNotification('File uploaded successfully!', 'success');
+                    displayPreviewResults(result);
+                } else {
+                    throw new Error(result.detail || 'Upload failed');
+                }
+            } catch (error) {
+                completeProgress('previewProgress', interval);
+                showNotification(`Upload failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function handleAIFile(file) {
+            if (!file) return;
+            
+            showNotification(`Uploading ${file.name} for AI analysis...`, 'info');
+            const interval = showProgress('aiProgress');
+            
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('user_id', 'demo_user');
+                formData.append('design_name', file.name);
+                
+                const response = await fetch(API_BASE + '/api/advanced/design/analyze', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                completeProgress('aiProgress', interval);
+                
+                if (response.ok) {
+                    showNotification('AI analysis completed!', 'success');
+                    displayAIResults(result);
+                    state.currentAnalysis = result;
+                } else {
+                    throw new Error(result.detail || 'Analysis failed');
+                }
+            } catch (error) {
+                completeProgress('aiProgress', interval);
+                showNotification(`Analysis failed: ${error.message}`, 'error');
+            }
+        }
+
+        // Result display functions
+        function displayPreviewResults(result) {
+            const resultsArea = document.getElementById('previewResults');
+            resultsArea.style.display = 'block';
+            resultsArea.innerHTML = `
+                <h3><i class="fas fa-cube"></i> Preview Results</h3>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value">${result.preview_id}</div>
+                        <div class="stat-label">Preview ID</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${result.file_type}</div>
+                        <div class="stat-label">File Type</div>
+                    </div>
+                    ${result.analysis ? `
+                        <div class="stat-card">
+                            <div class="stat-value">${result.analysis.estimated_print_time || 'N/A'}</div>
+                            <div class="stat-label">Print Time</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">${result.analysis.layer_count || 'N/A'}</div>
+                            <div class="stat-label">Layers</div>
+                        </div>
+                    ` : ''}
+                </div>
+                <button class="btn" onclick="openPreviewDetail('${result.preview_id}')">
+                    <i class="fas fa-eye"></i> View Detailed Preview
+                </button>
+            `;
+        }
+
+        function displayAIResults(result) {
+            const resultsArea = document.getElementById('aiResults');
+            resultsArea.style.display = 'block';
+            
+            const suggestions = result.optimization_suggestions || [];
+            const metrics = result.design_metrics || {};
+            
+            resultsArea.innerHTML = `
+                <h3><i class="fas fa-brain"></i> AI Analysis Results</h3>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value">${result.complexity_score || 'N/A'}</div>
+                        <div class="stat-label">Complexity Score</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${result.printability_score || 'N/A'}</div>
+                        <div class="stat-label">Printability</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${suggestions.length}</div>
+                        <div class="stat-label">Suggestions</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${result.recommended_material || 'PLA'}</div>
+                        <div class="stat-label">Recommended Material</div>
+                    </div>
+                </div>
+                ${suggestions.length > 0 ? `
+                    <h4>Optimization Suggestions:</h4>
+                    <ul>
+                        ${suggestions.slice(0, 3).map(s => `<li>${s.description} (Priority: ${s.priority})</li>`).join('')}
+                    </ul>
+                ` : ''}
+                <div style="margin-top: 15px;">
+                    <button class="btn btn-success" onclick="provideFeedback('positive')">
+                        <i class="fas fa-thumbs-up"></i> Helpful
+                    </button>
+                    <button class="btn btn-warning" onclick="provideFeedback('negative')">
+                        <i class="fas fa-thumbs-down"></i> Not Helpful
+                    </button>
+                </div>
+            `;
+        }
+
+        // Action functions
+        function openPreviewPage() {
+            window.open('/templates/preview.html', '_blank');
+        }
+
+        function openPreviewDetail(previewId) {
+            window.open(`/api/preview/preview/${previewId}`, '_blank');
+        }
+
+        async function analyzeDesign() {
+            if (!state.currentAnalysis) {
+                showNotification('Please upload a design file first', 'warning');
+                return;
+            }
+            
+            showNotification('Running additional analysis...', 'info');
+            // Additional analysis logic here
+        }
+
+        async function getDesignInsights() {
+            try {
+                const response = await fetch(API_BASE + '/api/advanced/design/insights');
+                const insights = await response.json();
+                
+                if (response.ok) {
+                    showNotification('Insights loaded successfully', 'success');
+                    // Display insights logic here
+                } else {
+                    throw new Error(insights.detail || 'Failed to load insights');
+                }
+            } catch (error) {
+                showNotification(`Failed to load insights: ${error.message}`, 'error');
+            }
+        }
+
+        async function provideFeedback(type) {
+            if (!state.currentAnalysis) return;
+            
+            try {
+                const response = await fetch(API_BASE + '/api/advanced/design/feedback', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        design_id: state.currentAnalysis.analysis_id,
+                        feedback_type: type,
+                        user_id: 'demo_user'
+                    })
+                });
+                
+                if (response.ok) {
+                    showNotification('Feedback submitted successfully', 'success');
+                } else {
+                    throw new Error('Failed to submit feedback');
+                }
+            } catch (error) {
+                showNotification(`Feedback failed: ${error.message}`, 'error');
+            }
+        }
+
+        // Analytics functions
+        function switchTab(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.getElementById(tabName + '-tab').classList.add('active');
+            
+            state.currentTab = tabName;
+        }
+
+        async function loadPerformanceAnalytics() {
+            try {
+                const response = await fetch(API_BASE + '/api/advanced/analytics/performance');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    displayAnalyticsData('performanceStats', data);
+                    showNotification('Performance data loaded', 'success');
+                } else {
+                    throw new Error(data.detail || 'Failed to load performance data');
+                }
+            } catch (error) {
+                showNotification(`Failed to load performance data: ${error.message}`, 'error');
+            }
+        }
+
+        async function loadLearningAnalytics() {
+            try {
+                const response = await fetch(API_BASE + '/api/advanced/analytics/learning');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    displayAnalyticsData('learningStats', data);
+                    showNotification('Learning insights loaded', 'success');
+                } else {
+                    throw new Error(data.detail || 'Failed to load learning data');
+                }
+            } catch (error) {
+                showNotification(`Failed to load learning data: ${error.message}`, 'error');
+            }
+        }
+
+        async function loadFailureAnalytics() {
+            try {
+                const response = await fetch(API_BASE + '/api/advanced/analytics/failures');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    displayAnalyticsData('failureStats', data);
+                    showNotification('Failure analysis loaded', 'success');
+                } else {
+                    throw new Error(data.detail || 'Failed to load failure data');
+                }
+            } catch (error) {
+                showNotification(`Failed to load failure data: ${error.message}`, 'error');
+            }
+        }
+
+        function displayAnalyticsData(containerId, data) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = Object.entries(data).map(([key, value]) => `
+                <div class="stat-card">
+                    <div class="stat-value">${value}</div>
+                    <div class="stat-label">${key.replace(/_/g, ' ').toUpperCase()}</div>
+                </div>
+            `).join('');
+        }
+
+        // Material functions
+        async function loadMaterialProfiles() {
+            showNotification('Loading material profiles...', 'info');
+            // Material loading logic here
+        }
+
+        async function checkCompatibility() {
+            showNotification('Checking material compatibility...', 'info');
+            // Compatibility checking logic here
+        }
+
+        async function optimizeMaterials() {
+            showNotification('Optimizing material selection...', 'info');
+            // Material optimization logic here
+        }
+
+        // System status
+        async function refreshSystemStatus() {
+            try {
+                const response = await fetch(API_BASE + '/api/advanced/health');
+                const status = await response.json();
+                
+                if (response.ok) {
+                    updateSystemStatus(status);
+                } else {
+                    throw new Error('Failed to fetch system status');
+                }
+            } catch (error) {
+                document.getElementById('systemHealth').innerHTML = `
+                    <span class="status-indicator status-error"></span>Error
+                `;
+                console.error('System status error:', error);
+            }
+        }
+
+        function updateSystemStatus(status) {
+            document.getElementById('systemHealth').innerHTML = `
+                <span class="status-indicator status-success"></span>Healthy
+            `;
+            document.getElementById('activeJobs').textContent = status.active_jobs || '0';
+            document.getElementById('successRate').textContent = status.success_rate || '95%';
+            document.getElementById('totalPrints').textContent = status.total_prints || '0';
+        }
+    </script>
+</body>
+</html>

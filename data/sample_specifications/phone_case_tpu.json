@@ -1,0 +1,143 @@
+{
+  "geometry": {
+    "type": "complex",
+    "primitive_type": null,
+    "dimensions": {
+      "length": 20.0,
+      "width": 20.0,
+      "height": 20.0
+    },
+    "units": "mm",
+    "coordinate_system": "right_handed",
+    "origin": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "materials": {
+    "type": "TPU",
+    "properties": {
+      "density": 1.2,
+      "melting_point": 200,
+      "glass_transition": -40,
+      "shrinkage_factor": 0.005,
+      "tensile_strength": 35,
+      "flexibility": "flexible"
+    },
+    "suitability_score": 10.0,
+    "alternative_materials": [
+      "TPU",
+      "PETG",
+      "ABS"
+    ]
+  },
+  "manufacturing": {
+    "layer_height": 0.15,
+    "infill_percentage": 25,
+    "wall_count": 2,
+    "top_bottom_layers": 3,
+    "print_speed": 20,
+    "support_required": false,
+    "retraction_distance": 1.0
+  },
+  "constraints": {
+    "minimum_wall_thickness": 2.0,
+    "minimum_feature_size": 1.0,
+    "maximum_overhang_angle": 45,
+    "maximum_bridge_length": 15,
+    "minimum_hole_diameter": 0.5,
+    "draft_angle": 1,
+    "tolerance": 0.1,
+    "maximum_wall_thickness": 3.0,
+    "button_clearance": 0.3,
+    "port_clearance": 0.5
+  },
+  "features": {
+    "flexibility": {
+      "material_recommendation": "TPU",
+      "wall_thickness_reduction": 0.8,
+      "infill_reduction": 0.5
+    }
+  },
+  "metadata": {
+    "object_type": "phone_case",
+    "specification_version": "1.0",
+    "generated_at": "2025-06-10T17:30:52.109332",
+    "analysis_depth": "detailed"
+  },
+  "primitives": [
+    {
+      "type": "box",
+      "name": "outer_shell",
+      "dimensions": {
+        "length": 151.0,
+        "width": 75.5,
+        "height": 11.3
+      },
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      }
+    },
+    {
+      "type": "box",
+      "name": "phone_cavity",
+      "dimensions": {
+        "length": 147.3,
+        "width": 71.8,
+        "height": 8.1
+      },
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": 2.0
+      }
+    }
+  ],
+  "operations": [
+    {
+      "type": "subtract",
+      "operand1": "outer_shell",
+      "operand2": "phone_cavity"
+    }
+  ],
+  "cutouts": [
+    {
+      "type": "camera",
+      "position": {
+        "x": 58.5,
+        "y": 20.75,
+        "z": 0
+      },
+      "dimensions": {
+        "diameter": 12,
+        "depth": 3.0
+      }
+    },
+    {
+      "type": "charging_port",
+      "position": {
+        "x": 0,
+        "y": -35.75,
+        "z": 1.0
+      },
+      "dimensions": {
+        "width": 25,
+        "height": 8,
+        "depth": 3.0
+      }
+    }
+  ],
+  "design_warnings": [
+    "Complex geometry may require supports"
+  ],
+  "validation": {
+    "validated_at": "2025-06-10T17:30:52.109341",
+    "status": "passed",
+    "warnings": [
+      "Complex geometry may require supports"
+    ]
+  }
+}

@@ -1,0 +1,94 @@
+{
+  "geometry": {
+    "type": "primitive",
+    "primitive_type": "sphere",
+    "dimensions": {
+      "length": 40.0,
+      "width": 40.0,
+      "height": 40.0
+    },
+    "units": "mm",
+    "coordinate_system": "right_handed",
+    "origin": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "wall_thickness": 1.7999999999999998,
+    "internal_cavity": true
+  },
+  "materials": {
+    "type": "PETG",
+    "properties": {
+      "density": 1.27,
+      "melting_point": 245,
+      "glass_transition": 85,
+      "shrinkage_factor": 0.002,
+      "tensile_strength": 50,
+      "flexibility": "semi_rigid"
+    },
+    "suitability_score": 5.0,
+    "alternative_materials": [
+      "PLA",
+      "ABS",
+      "PETG"
+    ]
+  },
+  "manufacturing": {
+    "layer_height": 0.15,
+    "infill_percentage": 25,
+    "wall_count": 3,
+    "top_bottom_layers": 3,
+    "print_speed": 40,
+    "support_required": true,
+    "bed_temperature": 75
+  },
+  "constraints": {
+    "minimum_wall_thickness": 1.3,
+    "minimum_feature_size": 0.65,
+    "maximum_overhang_angle": 45,
+    "maximum_bridge_length": 15,
+    "minimum_hole_diameter": 0.5,
+    "draft_angle": 1,
+    "tolerance": 0.1
+  },
+  "features": {
+    "hollow": {
+      "enabled": true,
+      "wall_thickness": 2.4,
+      "drainage_holes": true,
+      "drainage_hole_diameter": 2.0
+    }
+  },
+  "metadata": {
+    "object_type": "sphere",
+    "specification_version": "1.0",
+    "generated_at": "2025-06-10T17:30:52.112562",
+    "analysis_depth": "detailed"
+  },
+  "primitives": [
+    {
+      "type": "sphere",
+      "dimensions": {
+        "diameter": 20
+      },
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      }
+    }
+  ],
+  "operations": [],
+  "design_warnings": [],
+  "validation": {
+    "validated_at": "2025-06-10T17:30:52.112568",
+    "status": "passed",
+    "warnings": []
+  }
+}

@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Agent 3D Print System</title>
+    <meta name="description" content="Submit 3D print requests and track progress in real-time">
+    
+    <!-- CSS -->
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/components.css">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Meta tags for PWA -->
+    <meta name="theme-color" content="#2563eb">
+    <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <h1 class="logo">
+                    <span class="logo-icon">🖨️</span>
+                    AI 3D Print
+                </h1>
+                <div class="connection-status" id="connectionStatus">
+                    <span class="status-indicator" id="statusIndicator"></span>
+                    <span class="status-text" id="statusText">Connecting...</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main">
+        <div class="container">
+            <!-- Print Request Form -->
+            <section class="form-section">
+                <div class="card">
+                    <h2 class="section-title">Create New Print Job</h2>
+                    <form id="printRequestForm" class="print-form">
+                        <div class="form-group">
+                            <label for="userRequest" class="form-label">
+                                Describe what you want to 3D print:
+                            </label>
+                            <textarea 
+                                id="userRequest" 
+                                name="userRequest" 
+                                class="form-input" 
+                                placeholder="E.g., Create a small gear for a clock mechanism with 2cm diameter..."
+                                rows="4"
+                                required
+                                minlength="10"
+                                maxlength="1000"
+                            ></textarea>
+                            <div class="form-help">
+                                Describe your object in detail. The AI will analyze your request and generate the 3D model.
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="priority" class="form-label">Priority Level:</label>
+                            <select id="priority" name="priority" class="form-input">
+                                <option value="low">Low</option>
+                                <option value="normal" selected>Normal</option>
+                                <option value="high">High</option>
+                                <option value="urgent">Urgent</option>
+                            </select>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary" id="submitButton">
+                            <span class="btn-text">Submit Print Request</span>
+                        </button>
+                    </form>
+                </div>
+            </section>
+
+            <!-- Jobs Section -->
+            <section class="jobs-section" style="display: none;">
+                <div class="card">
+                    <h2 class="section-title">Your Print Jobs</h2>
+                    <div id="jobsContainer" class="jobs-container">
+                        <!-- Jobs will be populated here -->
+                    </div>
+                    <button id="loadMoreButton" class="btn btn-secondary" style="display: none;">
+                        Load More Jobs
+                    </button>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Notification Container -->
+    <div id="notificationContainer" class="notification-container"></div>
+
+    <!-- JavaScript -->
+    <script src="js/api.js"></script>
+    <script src="js/websocket.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/app.js"></script>
+    
+    <!-- Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then((registration) => {
+                        console.log('SW registered: ', registration);
+                    })
+                    .catch((registrationError) => {
+                        console.log('SW registration failed: ', registrationError);
+                    });
+            });
+        }
+    </script>
+</body>
+</html>

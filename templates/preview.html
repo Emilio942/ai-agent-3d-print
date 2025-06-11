@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Print Preview - AI Agent 3D Print System</title>
+    
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
+    
+    <!-- Custom CSS -->
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            overflow: hidden;
+        }
+        
+        .header {
+            background: #2c3e50;
+            color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 300;
+        }
+        
+        .header-actions {
+            display: flex;
+            gap: 1rem;
+        }
+        
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background 0.2s;
+        }
+        
+        .btn-primary {
+            background: #3498db;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #2980b9;
+        }
+        
+        .btn-secondary {
+            background: #95a5a6;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #7f8c8d;
+        }
+        
+        .main-container {
+            display: flex;
+            height: calc(100vh - 80px);
+        }
+        
+        .preview-viewport {
+            flex: 1;
+            position: relative;
+            background: #ecf0f1;
+        }
+        
+        .preview-controls {
+            width: 320px;
+            background: white;
+            border-left: 1px solid #bdc3c7;
+            padding: 1.5rem;
+            overflow-y: auto;
+            box-shadow: -2px 0 4px rgba(0,0,0,0.1);
+        }
+        
+        .control-section {
+            margin-bottom: 2rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid #ecf0f1;
+        }
+        
+        .control-section:last-child {
+            border-bottom: none;
+        }
+        
+        .control-section h3 {
+            margin-bottom: 1rem;
+            color: #2c3e50;
+            font-size: 1.1rem;
+            font-weight: 500;
+        }
+        
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #34495e;
+            font-weight: 500;
+        }
+        
+        .form-group select,
+        .form-group input[type="range"] {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #bdc3c7;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+        
+        .form-group input[type="range"] {
+            padding: 0;
+        }
+        
+        .layer-info {
+            background: #ecf0f1;
+            padding: 0.75rem;
+            border-radius: 4px;
+            text-align: center;
+            margin: 0.5rem 0;
+            font-size: 0.9rem;
+            color: #2c3e50;
+        }
+        
+        .layer-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+        
+        .layer-buttons button {
+            padding: 0.5rem;
+            border: 1px solid #bdc3c7;
+            background: #ecf0f1;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: background 0.2s;
+        }
+        
+        .layer-buttons button:hover {
+            background: #d5dbdb;
+        }
+        
+        .layer-buttons button.active {
+            background: #3498db;
+            color: white;
+            border-color: #3498db;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        .checkbox-group label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            font-weight: normal;
+        }
+        
+        .checkbox-group input[type="checkbox"] {
+            margin-right: 0.5rem;
+        }
+        
+        .export-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+        }
+        
+        .stats-display {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 4px;
+            margin-top: 1rem;
+        }
+        
+        .stats-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+        
+        .stats-row:last-child {
+            margin-bottom: 0;
+        }
+        
+        .stats-label {
+            color: #7f8c8d;
+        }
+        
+        .stats-value {
+            color: #2c3e50;
+            font-weight: 500;
+        }
+        
+        .upload-area {
+            border: 2px dashed #bdc3c7;
+            border-radius: 8px;
+            padding: 2rem;
+            text-align: center;
+            background: #f8f9fa;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+        
+        .upload-area:hover {
+            border-color: #3498db;
+        }
+        
+        .upload-area.dragover {
+            border-color: #2ecc71;
+            background: #e8f5e8;
+        }
+        
+        .upload-icon {
+            font-size: 3rem;
+            color: #95a5a6;
+            margin-bottom: 1rem;
+        }
+        
+        .upload-text {
+            color: #7f8c8d;
+            margin-bottom: 0.5rem;
+        }
+        
+        .upload-subtext {
+            font-size: 0.8rem;
+            color: #95a5a6;
+        }
+        
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(236, 240, 241, 0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .loading-spinner {
+            border: 4px solid #ecf0f1;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 1rem;
+        }
+        
+        .loading-text {
+            color: #2c3e50;
+            font-size: 1.1rem;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+        
+        .error-message {
+            background: #e74c3c;
+            color: white;
+            padding: 1rem;
+            border-radius: 4px;
+            margin: 1rem 0;
+            text-align: center;
+        }
+        
+        .success-message {
+            background: #2ecc71;
+            color: white;
+            padding: 1rem;
+            border-radius: 4px;
+            margin: 1rem 0;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1>🎯 3D Print Preview System</h1>
+        <div class="header-actions">
+            <button class="btn btn-secondary" onclick="resetView()">Reset View</button>
+            <button class="btn btn-primary" onclick="showUploadDialog()">Upload File</button>
+        </div>
+    </header>
+    
+    <div class="main-container">
+        <div class="preview-viewport" id="viewport">
+            <!-- 3D viewer will be rendered here -->
+            <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+                <div class="upload-icon">📁</div>
+                <div class="upload-text">Click to upload or drag & drop</div>
+                <div class="upload-subtext">Supports STL and G-code files (max 100MB)</div>
+                <input type="file" id="fileInput" style="display: none;" accept=".stl,.gcode,.g,.nc" onchange="handleFileUpload(this.files[0])">
+            </div>
+            
+            <div class="loading-overlay hidden" id="loadingOverlay">
+                <div class="loading-spinner"></div>
+                <div class="loading-text">Processing file...</div>
+            </div>
+        </div>
+        
+        <div class="preview-controls">
+            <div class="control-section">
+                <h3>View Mode</h3>
+                <div class="form-group">
+                    <label for="viewMode">Display Mode</label>
+                    <select id="viewMode" onchange="changeViewMode(this.value)">
+                        <option value="solid">Solid Model</option>
+                        <option value="wireframe">Wireframe</option>
+                        <option value="layers">Layers Only</option>
+                        <option value="combined">Combined View</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="control-section" id="layerControls" style="display: none;">
+                <h3>Layer Controls</h3>
+                <div class="form-group">
+                    <label for="layerSlider">Current Layer</label>
+                    <input type="range" id="layerSlider" min="0" max="100" value="0" oninput="showLayer(this.value)">
+                </div>
+                
+                <div class="layer-info">
+                    Layer: <span id="currentLayer">0</span> / <span id="totalLayers">0</span>
+                </div>
+                
+                <div class="layer-buttons">
+                    <button onclick="previousLayer()">Previous</button>
+                    <button onclick="toggleAnimation()" id="playPauseBtn">Play</button>
+                    <button onclick="nextLayer()">Next</button>
+                </div>
+                
+                <div class="form-group">
+                    <label for="animationSpeed">Animation Speed</label>
+                    <input type="range" id="animationSpeed" min="0.1" max="3" step="0.1" value="1" oninput="setAnimationSpeed(this.value)">
+                </div>
+            </div>
+            
+            <div class="control-section">
+                <h3>Display Options</h3>
+                <div class="checkbox-group">
+                    <label>
+                        <input type="checkbox" id="showGrid" checked onchange="toggleGrid(this.checked)">
+                        Show Grid
+                    </label>
+                    <label>
+                        <input type="checkbox" id="showAxes" checked onchange="toggleAxes(this.checked)">
+                        Show Axes
+                    </label>
+                    <label>
+                        <input type="checkbox" id="showBuildVolume" checked onchange="toggleBuildVolume(this.checked)">
+                        Build Volume
+                    </label>
+                    <label>
+                        <input type="checkbox" id="showTravelMoves" onchange="toggleTravelMoves(this.checked)">
+                        Travel Moves
+                    </label>
+                </div>
+            </div>
+            
+            <div class="control-section" id="analysisSection" style="display: none;">
+                <h3>Print Analysis</h3>
+                <div class="stats-display" id="statsDisplay">
+                    <!-- Stats will be populated dynamically -->
+                </div>
+            </div>
+            
+            <div class="control-section">
+                <h3>Export</h3>
+                <div class="export-buttons">
+                    <button class="btn btn-secondary" onclick="exportPreview('png')">Export PNG</button>
+                    <button class="btn btn-secondary" onclick="exportPreview('json')">Export Data</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Include the preview JavaScript module -->
+    <script type="module">
+        import { Print3DViewer, PreviewControls } from '/static/js/print_preview.js';
+        
+        let viewer = null;
+        let currentPreviewData = null;
+        let animationPlaying = false;
+        let animationSpeed = 1;
+        
+        // Initialize viewer when page loads
+        window.addEventListener('DOMContentLoaded', function() {
+            initializeViewer();
+            setupDragAndDrop();
+        });
+        
+        function initializeViewer() {
+            const viewport = document.getElementById('viewport');
+            const uploadArea = document.getElementById('uploadArea');
+            
+            // Create viewer container
+            const viewerContainer = document.createElement('div');
+            viewerContainer.style.width = '100%';
+            viewerContainer.style.height = '100%';
+            viewerContainer.style.position = 'absolute';
+            viewerContainer.style.top = '0';
+            viewerContainer.style.left = '0';
+            viewerContainer.style.zIndex = '1';
+            viewerContainer.classList.add('hidden');
+            
+            viewport.appendChild(viewerContainer);
+            
+            // Initialize 3D viewer
+            viewer = new Print3DViewer(viewerContainer, {
+                background: 0xecf0f1,
+                showGrid: true,
+                showAxes: true,
+                gridSize: 200
+            });
+            
+            window.viewer = viewer; // Make available globally
+        }
+        
+        function setupDragAndDrop() {
+            const uploadArea = document.getElementById('uploadArea');
+            
+            uploadArea.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+            
+            uploadArea.addEventListener('dragleave', function(e) {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+            });
+            
+            uploadArea.addEventListener('drop', function(e) {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    handleFileUpload(files[0]);
+                }
+            });
+        }
+        
+        window.handleFileUpload = async function(file) {
+            if (!file) return;
+            
+            showLoading(true);
+            hideUploadArea();
+            
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+                
+                let endpoint;
+                const fileExt = file.name.toLowerCase().split('.').pop();
+                
+                if (['stl'].includes(fileExt)) {
+                    endpoint = '/api/preview/stl/upload';
+                } else if (['gcode', 'g', 'nc'].includes(fileExt)) {
+                    endpoint = '/api/preview/gcode/upload';
+                } else {
+                    throw new Error('Unsupported file type');
+                }
+                
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    currentPreviewData = result.data.preview_data;
+                    loadPreviewData(currentPreviewData);
+                    showSuccessMessage('File loaded successfully!');
+                } else {
+                    throw new Error(result.error || 'Upload failed');
+                }
+                
+            } catch (error) {
+                console.error('Upload error:', error);
+                showErrorMessage('Error loading file: ' + error.message);
+                showUploadArea();
+            } finally {
+                showLoading(false);
+            }
+        };
+        
+        function loadPreviewData(previewData) {
+            if (previewData.geometry) {
+                // STL preview
+                viewer.loadSTLPreview(previewData);
+                showAnalysis(previewData.statistics);
+                
+            } else if (previewData.layer_preview) {
+                // G-code preview
+                viewer.loadLayerPreview(previewData.layer_preview);
+                setupLayerControls(previewData.layer_preview.layers.length);
+                showAnalysis(previewData.print_analysis);
+            }
+            
+            showViewer();
+        }
+        
+        function setupLayerControls(totalLayers) {
+            const layerControls = document.getElementById('layerControls');
+            const layerSlider = document.getElementById('layerSlider');
+            const totalLayersSpan = document.getElementById('totalLayers');
+            
+            layerSlider.max = totalLayers - 1;
+            totalLayersSpan.textContent = totalLayers;
+            layerControls.style.display = 'block';
+        }
+        
+        function showAnalysis(analysisData) {
+            const analysisSection = document.getElementById('analysisSection');
+            const statsDisplay = document.getElementById('statsDisplay');
+            
+            let statsHTML = '';
+            
+            if (analysisData.triangle_count !== undefined) {
+                // STL statistics
+                statsHTML += `
+                    <div class="stats-row">
+                        <span class="stats-label">Triangles:</span>
+                        <span class="stats-value">${analysisData.triangle_count.toLocaleString()}</span>
+                    </div>
+                    <div class="stats-row">
+                        <span class="stats-label">Vertices:</span>
+                        <span class="stats-value">${analysisData.vertex_count.toLocaleString()}</span>
+                    </div>
+                `;
+            }
+            
+            if (analysisData.total_layers !== undefined) {
+                // G-code statistics
+                const hours = Math.floor(analysisData.estimated_print_time);
+                const minutes = Math.floor((analysisData.estimated_print_time - hours) * 60);
+                
+                statsHTML += `
+                    <div class="stats-row">
+                        <span class="stats-label">Total Layers:</span>
+                        <span class="stats-value">${analysisData.total_layers}</span>
+                    </div>
+                    <div class="stats-row">
+                        <span class="stats-label">Print Time:</span>
+                        <span class="stats-value">${hours}h ${minutes}m</span>
+                    </div>
+                    <div class="stats-row">
+                        <span class="stats-label">Quality Score:</span>
+                        <span class="stats-value">${analysisData.print_quality_score}%</span>
+                    </div>
+                `;
+            }
+            
+            statsDisplay.innerHTML = statsHTML;
+            analysisSection.style.display = 'block';
+        }
+        
+        // UI Control Functions
+        window.changeViewMode = function(mode) {
+            if (viewer) {
+                viewer.setViewMode(mode);
+            }
+        };
+        
+        window.showLayer = function(layerNumber) {
+            if (viewer) {
+                viewer.showLayer(parseInt(layerNumber));
+                document.getElementById('currentLayer').textContent = layerNumber;
+            }
+        };
+        
+        window.previousLayer = function() {
+            const slider = document.getElementById('layerSlider');
+            const current = parseInt(slider.value);
+            if (current > 0) {
+                slider.value = current - 1;
+                showLayer(slider.value);
+            }
+        };
+        
+        window.nextLayer = function() {
+            const slider = document.getElementById('layerSlider');
+            const current = parseInt(slider.value);
+            const max = parseInt(slider.max);
+            if (current < max) {
+                slider.value = current + 1;
+                showLayer(slider.value);
+            }
+        };
+        
+        window.toggleAnimation = function() {
+            const btn = document.getElementById('playPauseBtn');
+            
+            if (animationPlaying) {
+                // Pause animation
+                animationPlaying = false;
+                btn.textContent = 'Play';
+                btn.classList.remove('active');
+            } else {
+                // Start animation
+                animationPlaying = true;
+                btn.textContent = 'Pause';
+                btn.classList.add('active');
+                
+                if (viewer) {
+                    viewer.animateLayerPreview(animationSpeed);
+                }
+            }
+        };
+        
+        window.setAnimationSpeed = function(speed) {
+            animationSpeed = parseFloat(speed);
+        };
+        
+        window.toggleGrid = function(show) {
+            // Implementation would depend on viewer API
+        };
+        
+        window.toggleAxes = function(show) {
+            // Implementation would depend on viewer API
+        };
+        
+        window.toggleBuildVolume = function(show) {
+            // Implementation would depend on viewer API
+        };
+        
+        window.toggleTravelMoves = function(show) {
+            // Implementation would depend on viewer API
+        };
+        
+        window.exportPreview = function(format) {
+            if (viewer) {
+                viewer.exportPreview(format);
+            }
+        };
+        
+        window.resetView = function() {
+            if (viewer) {
+                // Reset camera position
+                viewer.camera.position.set(50, 50, 50);
+                viewer.controls.target.set(0, 0, 0);
+                viewer.controls.update();
+            }
+        };
+        
+        window.showUploadDialog = function() {
+            document.getElementById('fileInput').click();
+        };
+        
+        // Utility Functions
+        function showViewer() {
+            const viewerContainer = document.querySelector('.preview-viewport > div:last-child');
+            viewerContainer.classList.remove('hidden');
+        }
+        
+        function hideUploadArea() {
+            document.getElementById('uploadArea').classList.add('hidden');
+        }
+        
+        function showUploadArea() {
+            document.getElementById('uploadArea').classList.remove('hidden');
+        }
+        
+        function showLoading(show) {
+            const overlay = document.getElementById('loadingOverlay');
+            if (show) {
+                overlay.classList.remove('hidden');
+            } else {
+                overlay.classList.add('hidden');
+            }
+        }
+        
+        function showErrorMessage(message) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.textContent = message;
+            
+            const controls = document.querySelector('.preview-controls');
+            controls.insertBefore(errorDiv, controls.firstChild);
+            
+            setTimeout(() => {
+                errorDiv.remove();
+            }, 5000);
+        }
+        
+        function showSuccessMessage(message) {
+            const successDiv = document.createElement('div');
+            successDiv.className = 'success-message';
+            successDiv.textContent = message;
+            
+            const controls = document.querySelector('.preview-controls');
+            controls.insertBefore(successDiv, controls.firstChild);
+            
+            setTimeout(() => {
+                successDiv.remove();
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

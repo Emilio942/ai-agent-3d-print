@@ -1,0 +1,87 @@
+{
+  "geometry": {
+    "type": "primitive",
+    "primitive_type": "cube",
+    "dimensions": {
+      "length": 20.0,
+      "width": 20.0,
+      "height": 20.0
+    },
+    "units": "mm",
+    "coordinate_system": "right_handed",
+    "origin": {
+      "x": 0,
+      "y": 0,
+      "z": 0
+    }
+  },
+  "materials": {
+    "type": "PLA",
+    "properties": {
+      "density": 1.24,
+      "melting_point": 180,
+      "glass_transition": 60,
+      "shrinkage_factor": 0.003,
+      "tensile_strength": 50,
+      "flexibility": "rigid"
+    },
+    "suitability_score": 9.0,
+    "alternative_materials": [
+      "PLA",
+      "ABS",
+      "PETG"
+    ]
+  },
+  "manufacturing": {
+    "layer_height": 0.15,
+    "infill_percentage": 25,
+    "wall_count": 3,
+    "top_bottom_layers": 3,
+    "print_speed": 48,
+    "support_required": "auto_detect",
+    "bed_temperature": 60
+  },
+  "constraints": {
+    "minimum_wall_thickness": 1.2,
+    "minimum_feature_size": 0.6,
+    "maximum_overhang_angle": 45,
+    "maximum_bridge_length": 15,
+    "minimum_hole_diameter": 0.5,
+    "draft_angle": 1,
+    "tolerance": 0.1
+  },
+  "features": {},
+  "metadata": {
+    "object_type": "cube",
+    "specification_version": "1.0",
+    "generated_at": "2025-06-10T17:30:52.102424",
+    "analysis_depth": "detailed"
+  },
+  "primitives": [
+    {
+      "type": "box",
+      "dimensions": {
+        "length": 20.0,
+        "width": 20.0,
+        "height": 20.0
+      },
+      "position": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "rotation": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      }
+    }
+  ],
+  "operations": [],
+  "design_warnings": [],
+  "validation": {
+    "validated_at": "2025-06-10T17:30:52.102431",
+    "status": "passed",
+    "warnings": []
+  }
+}

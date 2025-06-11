@@ -1,0 +1,105 @@
+# AI Agent 3D Print System - Docker Ignore File
+
+# Python cache and bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Documentation (include only essential docs in container)
+docs/
+*.md
+!README.md
+
+# Test files
+test_*.py
+*_test.py
+tests/
+validation_results.json
+
+# Logs (will be mounted as volume)
+logs/
+*.log
+
+# Data files (will be mounted as volume)
+data/output/
+data/temp/
+cache/
+
+# Backup files
+backups/
+*.bak
+*.backup
+
+# Development files
+.env
+.env.local
+.env.development
+.env.staging
+task_*.py
+debug_*.py
+quick_test_*.py
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Coverage reports
+htmlcov/
+.coverage
+.pytest_cache/
+
+# Jupyter notebooks
+*.ipynb
+.ipynb_checkpoints/
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+
+# SSL certificates (mount as volume instead)
+ssl/
+*.crt
+*.key
+*.pem
+
+# Monitoring configs (mount as volume)
+monitoring/
+
+# Node.js (if any)
+node_modules/
+npm-debug.log
+
+# Large model files
+*.bin
+*.safetensors
+*.onnx
+
+# Docker files (not needed in container)
+Dockerfile*
+docker-compose*.yml
+.dockerignore

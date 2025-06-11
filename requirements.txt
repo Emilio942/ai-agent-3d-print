@@ -1,0 +1,99 @@
+# AI Agent 3D Print System - Python Dependencies
+# Core Framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+websockets==12.0
+pydantic==2.5.0
+pydantic-settings==2.1.0
+
+# NLP & AI
+spacy==3.7.2
+transformers==4.36.0
+torch==2.1.0
+numpy==1.24.3
+scikit-learn==1.3.2  # For AI design analysis
+pandas==2.1.4  # For data analysis and historical tracking
+joblib==1.3.2  # For model persistence
+
+# CAD & 3D Processing
+FreeCAD==0.21.0  # Note: May need conda or specific installation method
+trimesh==4.6.11
+numpy-stl==3.0.1
+manifold3d==3.1.1
+scipy==1.15.3
+scikit-image==0.25.2
+
+# Hardware Communication
+pyserial==3.5
+
+# System Monitoring
+psutil==5.9.6
+
+# Configuration & Data
+PyYAML==6.0.1
+python-dotenv==1.0.0
+sqlalchemy==2.0.23
+aiosqlite==0.19.0
+
+# Logging
+python-json-logger==2.0.7
+
+# CLI & Utilities
+click==8.1.7
+rich==13.7.0
+loguru==0.7.2
+
+# Web & Networking
+httpx==0.25.2
+aiofiles==23.2.1
+python-multipart==0.0.6
+
+# Development & Testing
+pytest==7.4.3
+pytest-asyncio==0.21.1
+pytest-cov==4.1.0
+pytest-mock==3.12.0
+black==23.11.0
+mypy==1.7.0
+
+# API Testing
+websockets==12.0
+httpx==0.25.2
+pre-commit==3.5.0
+flake8==6.1.0
+
+# Optional: Enhanced Features
+redis==5.0.1  # For distributed job queue
+celery==5.3.4  # For background task processing
+slowapi==0.1.9  # For rate limiting
+python-jose[cryptography]==3.3.0  # For JWT tokens
+
+# Optional: Monitoring & Observability
+prometheus-client==0.19.0
+structlog==23.2.0
+
+# Development Utilities
+jupyter==1.0.0  # For prototyping and analysis
+matplotlib==3.8.2  # For visualization during development
+pillow==10.1.0  # For image processing if needed
+
+# Platform-specific dependencies (uncomment as needed)
+# Windows
+# pywin32==306  # For Windows-specific functionality
+
+# Linux
+# python3-dev  # Required for some compiled extensions
+# libffi-dev   # Required for some crypto operations
+
+# macOS specific
+# No additional requirements beyond base dependencies
+
+# Version constraints for stability
+setuptools>=65.0.0
+wheel>=0.37.0
+pip>=21.0.0
+
+# Note: FreeCAD installation may require conda or AppImage
+# Alternative installation methods:
+# conda install -c conda-forge freecad
+# or use FreeCAD AppImage with Python path configuration

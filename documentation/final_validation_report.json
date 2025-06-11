@@ -1,0 +1,128 @@
+{
+  "summary": {
+    "total_tests": 15,
+    "successful_tests": 15,
+    "failed_tests": 0,
+    "success_rate": 100.0,
+    "status": "PASS"
+  },
+  "categories": {
+    "security": {
+      "total": 5,
+      "passed": 5
+    },
+    "performance": {
+      "total": 5,
+      "passed": 5
+    },
+    "integration": {
+      "total": 5,
+      "passed": 5
+    }
+  },
+  "detailed_results": {
+    "security_tests": [
+      {
+        "success": true,
+        "status_code": 200,
+        "data": {
+          "status": "healthy",
+          "threat_level": "LOW",
+          "active_violations": 0,
+          "rate_limit_status": {
+            "global_active": 2,
+            "user_limits_active": 0,
+            "ip_limits_active": 1,
+            "violations": 0
+          },
+          "audit_log_entries": 1,
+          "mfa_enabled_users": 0
+        },
+        "details": "Status: healthy, Threat Level: LOW",
+        "test_name": "Security Status"
+      },
+      {
+        "success": true,
+        "status_code": 200,
+        "details": "Audit logging functional, events available",
+        "test_name": "Audit Logging"
+      },
+      {
+        "success": true,
+        "status_code": 200,
+        "details": "Secret: False, QR: True, Backup codes: True",
+        "test_name": "MFA Setup"
+      },
+      {
+        "success": true,
+        "status_code": 200,
+        "details": "Input sanitization middleware active",
+        "test_name": "Input Sanitization"
+      },
+      {
+        "success": true,
+        "details": "Security headers found: ['X-Frame-Options', 'X-Content-Type-Options', 'X-XSS-Protection']",
+        "test_name": "Security Headers"
+      }
+    ],
+    "performance_tests": [
+      {
+        "success": true,
+        "status_code": 200,
+        "details": "CPU: True, Memory: True, Cache: True",
+        "test_name": "Performance Monitoring"
+      },
+      {
+        "success": true,
+        "status_code": 200,
+        "details": "Cache stats available, entries: 0",
+        "test_name": "Cache System"
+      },
+      {
+        "success": true,
+        "status_code": 200,
+        "details": "Resource monitoring active",
+        "test_name": "Resource Management"
+      },
+      {
+        "success": true,
+        "status_code": 200,
+        "details": "Response time: 0.210s",
+        "test_name": "Response Time Tracking"
+      },
+      {
+        "success": true,
+        "details": "Performance monitoring and alerting system active",
+        "test_name": "Performance Alerts"
+      }
+    ],
+    "integration_tests": [
+      {
+        "success": true,
+        "details": "Middleware headers: Process-Time: True, Memory: True",
+        "test_name": "Middleware Integration"
+      },
+      {
+        "success": true,
+        "details": "Endpoints working: 7/7 (100%)",
+        "test_name": "API Endpoint Availability"
+      },
+      {
+        "success": true,
+        "details": "Error handling functional (HTTP 404)",
+        "test_name": "Error Handling"
+      },
+      {
+        "success": true,
+        "details": "System health check functional",
+        "test_name": "System Health"
+      },
+      {
+        "success": true,
+        "details": "Concurrent requests: 10/10 successful",
+        "test_name": "Concurrent Load"
+      }
+    ],
+    "middleware_tests": []
+  }
+}

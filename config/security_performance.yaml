@@ -1,0 +1,121 @@
+# Security & Performance Configuration
+# Added for Aufgabe X.2: Security & Performance Enhancement
+
+security:
+  # Input Sanitization Settings
+  input_sanitization:
+    enabled: true
+    sql_injection_protection: true
+    xss_protection: true
+    command_injection_protection: true
+    path_traversal_protection: true
+    max_input_length: 10000
+    
+  # Rate Limiting Configuration
+  rate_limiting:
+    enabled: true
+    global_limit: 1000  # requests per minute
+    per_user_limit: 100  # requests per minute per user
+    per_ip_limit: 200   # requests per minute per IP
+    per_endpoint_limit: 50  # requests per minute per endpoint
+    burst_allowance: 10
+    penalty_duration: 300  # seconds
+    
+  # Multi-Factor Authentication
+  mfa:
+    enabled: true
+    totp_window: 1
+    backup_codes_count: 10
+    qr_code_size: 256
+    
+  # Security Headers
+  headers:
+    csp: "default-src 'self'"
+    hsts: "max-age=31536000; includeSubDomains"
+    x_frame_options: "DENY"
+    x_content_type_options: "nosniff"
+    x_xss_protection: "1; mode=block"
+    
+  # Audit Logging
+  audit_logging:
+    enabled: true
+    log_level: "INFO"
+    retention_days: 90
+    alert_thresholds:
+      high_threat: 10
+      critical_threat: 5
+
+performance:
+  # Caching Configuration
+  caching:
+    enabled: true
+    default_ttl: 300  # seconds
+    max_cache_size: 1000  # number of items
+    cleanup_interval: 600  # seconds
+    cache_json_responses: true
+    
+  # Resource Management
+  resource_management:
+    enabled: true
+    cpu_threshold: 80  # percentage
+    memory_threshold: 85  # percentage
+    disk_threshold: 90  # percentage
+    network_threshold: 80  # percentage
+    max_concurrent_requests: 100
+    
+  # Performance Monitoring
+  monitoring:
+    enabled: true
+    metrics_collection_interval: 60  # seconds
+    performance_alerts: true
+    slow_request_threshold: 1.0  # seconds
+    error_rate_threshold: 0.05  # 5%
+    
+  # Response Compression
+  compression:
+    enabled: true
+    min_response_size: 1024  # bytes
+    compression_level: 6
+    supported_types:
+      - "application/json"
+      - "text/plain"
+      - "text/html"
+      - "text/css"
+      - "application/javascript"
+
+# Middleware Configuration
+middleware:
+  security_middleware:
+    enabled: true
+    order: 1
+    
+  performance_middleware:
+    enabled: true
+    order: 2
+    
+  cors_middleware:
+    enabled: true
+    allow_origins: ["*"]
+    allow_methods: ["GET", "POST", "PUT", "DELETE"]
+    allow_headers: ["*"]
+
+# API Endpoints Configuration
+api:
+  security_performance:
+    prefix: "/api/security-performance"
+    tags: ["Security & Performance"]
+    enabled: true
+    
+# Health Monitoring
+health_monitoring:
+  enabled: true
+  check_interval: 30  # seconds
+  components:
+    - api
+    - database
+    - redis
+    - file_system
+    - research_agent
+    - cad_agent
+    - slicer_agent
+    - printer_agent

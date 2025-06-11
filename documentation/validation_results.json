@@ -1,0 +1,265 @@
+{
+  "timestamp": 1749649727.5742617,
+  "test_results": {
+    "Base Configuration Loading": {
+      "success": true,
+      "message": "Loaded configuration with 13 sections",
+      "timestamp": 1749649724.17153
+    },
+    "Environment Config: development.yaml": {
+      "success": true,
+      "message": "File exists",
+      "timestamp": 1749649724.171558
+    },
+    "Environment Config: staging.yaml": {
+      "success": true,
+      "message": "File exists",
+      "timestamp": 1749649724.1715717
+    },
+    "Environment Config: production.yaml": {
+      "success": true,
+      "message": "File exists",
+      "timestamp": 1749649724.1715806
+    },
+    "Development Environment Loading": {
+      "success": true,
+      "message": "Environment: development",
+      "timestamp": 1749649724.178459
+    },
+    "Production Environment Loading": {
+      "success": true,
+      "message": "Environment: production",
+      "timestamp": 1749649724.1863666
+    },
+    "Config Section: app": {
+      "success": true,
+      "message": "Section present",
+      "timestamp": 1749649724.1863773
+    },
+    "Config Section: api": {
+      "success": true,
+      "message": "Section present",
+      "timestamp": 1749649724.1863785
+    },
+    "Config Section: agents": {
+      "success": true,
+      "message": "Section present",
+      "timestamp": 1749649724.1863794
+    },
+    "Config Section: logging": {
+      "success": true,
+      "message": "Section present",
+      "timestamp": 1749649724.1863804
+    },
+    "Config Section: monitoring": {
+      "success": true,
+      "message": "Section present",
+      "timestamp": 1749649724.1863809
+    },
+    "Health Monitor Initialization": {
+      "success": true,
+      "message": "Initialized with 8 components",
+      "timestamp": 1749649725.198338
+    },
+    "Component Registration: api": {
+      "success": true,
+      "message": "Registered",
+      "timestamp": 1749649725.1983407
+    },
+    "Component Registration: database": {
+      "success": true,
+      "message": "Registered",
+      "timestamp": 1749649725.1983461
+    },
+    "Component Registration: redis": {
+      "success": true,
+      "message": "Registered",
+      "timestamp": 1749649725.1983473
+    },
+    "Component Registration: file_system": {
+      "success": true,
+      "message": "Registered",
+      "timestamp": 1749649725.198348
+    },
+    "Component Registration: research_agent": {
+      "success": true,
+      "message": "Registered",
+      "timestamp": 1749649725.1983488
+    },
+    "Component Registration: cad_agent": {
+      "success": true,
+      "message": "Registered",
+      "timestamp": 1749649725.1983495
+    },
+    "Component Registration: slicer_agent": {
+      "success": true,
+      "message": "Registered",
+      "timestamp": 1749649725.1983502
+    },
+    "Component Registration: printer_agent": {
+      "success": true,
+      "message": "Registered",
+      "timestamp": 1749649725.1983507
+    },
+    "Component Health: api": {
+      "success": true,
+      "message": "Status: HealthStatus.HEALTHY, Response: 0.0ms",
+      "timestamp": 1749649725.1983695
+    },
+    "Component Health: database": {
+      "success": true,
+      "message": "Status: HealthStatus.HEALTHY, Response: 0.0ms",
+      "timestamp": 1749649725.1984043
+    },
+    "Component Health: redis": {
+      "success": true,
+      "message": "Status: HealthStatus.HEALTHY, Response: 0.0ms",
+      "timestamp": 1749649725.1984103
+    },
+    "Component Health: file_system": {
+      "success": true,
+      "message": "Status: HealthStatus.DEGRADED, Response: 0.0ms",
+      "timestamp": 1749649725.1984482
+    },
+    "Component Health: research_agent": {
+      "success": true,
+      "message": "Status: HealthStatus.HEALTHY, Response: 0.0ms",
+      "timestamp": 1749649725.1984544
+    },
+    "Component Health: cad_agent": {
+      "success": true,
+      "message": "Status: HealthStatus.HEALTHY, Response: 0.0ms",
+      "timestamp": 1749649725.1984584
+    },
+    "Component Health: slicer_agent": {
+      "success": true,
+      "message": "Status: HealthStatus.HEALTHY, Response: 0.0ms",
+      "timestamp": 1749649725.1984625
+    },
+    "Component Health: printer_agent": {
+      "success": true,
+      "message": "Status: HealthStatus.HEALTHY, Response: 0.0ms",
+      "timestamp": 1749649725.1984653
+    },
+    "Overall System Health": {
+      "success": true,
+      "message": "Status: HealthStatus.DEGRADED",
+      "timestamp": 1749649726.2377148
+    },
+    "System Metrics Collection": {
+      "success": true,
+      "message": "CPU: 19.1%, Memory: 24.9%, Disk: 88.8%",
+      "timestamp": 1749649727.2639804
+    },
+    "API Endpoint: /health": {
+      "success": true,
+      "message": "Endpoint defined",
+      "timestamp": 1749649727.5739934
+    },
+    "API Endpoint: /health/detailed": {
+      "success": true,
+      "message": "Endpoint defined",
+      "timestamp": 1749649727.5739958
+    },
+    "API Endpoint: /health/components/{component_name}": {
+      "success": true,
+      "message": "Endpoint pattern defined",
+      "timestamp": 1749649727.5740004
+    },
+    "Documentation Directory": {
+      "success": true,
+      "message": "Directory exists",
+      "timestamp": 1749649727.5740285
+    },
+    "Documentation: API_DOCUMENTATION.md": {
+      "success": true,
+      "message": "File exists (13.6KB)",
+      "timestamp": 1749649727.57405
+    },
+    "Documentation: DEPLOYMENT_GUIDE.md": {
+      "success": true,
+      "message": "File exists (23.4KB)",
+      "timestamp": 1749649727.5740616
+    },
+    "Config Documentation: config/README.md": {
+      "success": true,
+      "message": "File exists",
+      "timestamp": 1749649727.5740695
+    },
+    "Config Documentation: tech_stack.md": {
+      "success": true,
+      "message": "File exists",
+      "timestamp": 1749649727.5740755
+    },
+    "Config Documentation: README.md": {
+      "success": true,
+      "message": "File exists",
+      "timestamp": 1749649727.5740807
+    },
+    "Docker File: Dockerfile": {
+      "success": true,
+      "message": "File exists",
+      "timestamp": 1749649727.5740893
+    },
+    "Docker File: docker-compose.prod.yml": {
+      "success": true,
+      "message": "File exists",
+      "timestamp": 1749649727.5740945
+    },
+    "Docker File: .dockerignore": {
+      "success": true,
+      "message": "File exists",
+      "timestamp": 1749649727.5740995
+    },
+    "Production Startup Script": {
+      "success": true,
+      "message": "Script exists",
+      "timestamp": 1749649727.5741055
+    },
+    "Production Dependencies": {
+      "success": true,
+      "message": "All required dependencies present",
+      "timestamp": 1749649727.5741472
+    },
+    "Environment Template: config/production.yaml": {
+      "success": true,
+      "message": "Template exists",
+      "timestamp": 1749649727.5741591
+    },
+    "Environment Template: config/staging.yaml": {
+      "success": true,
+      "message": "Template exists",
+      "timestamp": 1749649727.5741644
+    },
+    "Security Feature: api_key_enabled": {
+      "success": true,
+      "message": "Configured",
+      "timestamp": 1749649727.5741694
+    },
+    "Security Feature: jwt_enabled": {
+      "success": true,
+      "message": "Configured",
+      "timestamp": 1749649727.5741704
+    },
+    "Security Feature: input_validation": {
+      "success": true,
+      "message": "Configured",
+      "timestamp": 1749649727.5741713
+    },
+    "CORS Configuration": {
+      "success": true,
+      "message": "CORS origins configured",
+      "timestamp": 1749649727.5741727
+    },
+    "Rate Limiting": {
+      "success": true,
+      "message": "Rate limiting enabled",
+      "timestamp": 1749649727.5741765
+    }
+  },
+  "summary": {
+    "total_tests": 51,
+    "passed_tests": 51,
+    "success_rate": 100.0
+  }
+}
