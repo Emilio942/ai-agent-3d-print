@@ -1,0 +1,11 @@
+{
+  "printer": {
+    "layer_height": 0.1,
+    "infill_percentage": 30,
+    "print_speed": 40,
+    "temperature": {
+      "nozzle": 210,
+      "bed": 60
+    }
+  }
+}

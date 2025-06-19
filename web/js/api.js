@@ -76,6 +76,52 @@ class APIClient {
     }
 
     /**
+     * Submit a new print request with image upload
+     */
+    async submitImagePrintRequest(imageFile, priority = 'normal', extrusionHeight = 5.0, baseThickness = 1.0) {
+        const formData = new FormData();
+        formData.append('image', imageFile);
+        formData.append('priority', priority);
+        formData.append('extrusion_height', extrusionHeight.toString());
+        formData.append('base_thickness', baseThickness.toString());
+
+        // For FormData, we need to override the default JSON headers
+        const url = `${this.baseURL}/api/image-print-request`;
+        
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+            
+            const response = await fetch(url, {
+                method: 'POST',
+                body: formData,
+                signal: controller.signal
+            });
+            
+            clearTimeout(timeoutId);
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new APIError(
+                    response.status,
+                    errorData.detail || `HTTP ${response.status}`,
+                    errorData
+                );
+            }
+
+            return await response.json();
+        } catch (error) {
+            if (error.name === 'AbortError') {
+                throw new APIError(408, 'Request timeout');
+            }
+            if (error instanceof APIError) {
+                throw error;
+            }
+            throw new APIError(0, 'Network error', { originalError: error.message });
+        }
+    }
+
+    /**
      * Get job status by ID
      */
     async getJobStatus(jobId) {

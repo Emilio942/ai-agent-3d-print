@@ -241,8 +241,8 @@ class HealthMonitor:
     def get_system_metrics(self) -> SystemMetrics:
         """Get current system metrics."""
         try:
-            # CPU usage
-            cpu_percent = psutil.cpu_percent(interval=1)
+            # CPU usage (non-blocking, returns since last call)
+            cpu_percent = psutil.cpu_percent(interval=None)
             
             # Memory usage
             memory = psutil.virtual_memory()

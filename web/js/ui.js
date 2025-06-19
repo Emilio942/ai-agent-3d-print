@@ -29,9 +29,28 @@ class UIManager {
         this.prioritySelect = document.getElementById('priority');
         this.submitButton = document.getElementById('submitButton');
         
+        // Input method elements
+        this.inputMethodRadios = document.querySelectorAll('input[name="inputMethod"]');
+        this.textInputSection = document.getElementById('textInputSection');
+        this.imageInputSection = document.getElementById('imageInputSection');
+        
+        // Image upload elements
+        this.imageUpload = document.getElementById('imageUpload');
+        this.imageUploadArea = document.getElementById('imageUploadArea');
+        this.uploadPlaceholder = document.getElementById('uploadPlaceholder');
+        this.imagePreview = document.getElementById('imagePreview');
+        this.previewImage = document.getElementById('previewImage');
+        this.removeImageButton = document.getElementById('removeImage');
+        
+        // Store uploaded image data
+        this.uploadedImageFile = null;
+        
         // Job list
         this.jobsList = document.getElementById('jobsList');
         this.jobsContainer = document.getElementById('jobsContainer');
+        
+        // Make fillExample globally available
+        window.fillExample = this.fillExample.bind(this);
         this.loadMoreButton = document.getElementById('loadMoreButton');
         
         // Notifications
@@ -51,6 +70,50 @@ class UIManager {
             this.printRequestForm.addEventListener('submit', (e) => {
                 e.preventDefault();
                 this.handleFormSubmit();
+            });
+        }
+
+        // Input method change
+        this.inputMethodRadios.forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                this.handleInputMethodChange(e.target.value);
+            });
+        });
+
+        // Image upload handling
+        if (this.imageUpload) {
+            this.imageUpload.addEventListener('change', (e) => {
+                this.handleImageUpload(e.target.files[0]);
+            });
+        }
+
+        // Drag and drop for image upload
+        if (this.imageUploadArea) {
+            this.imageUploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                this.imageUploadArea.classList.add('dragover');
+            });
+
+            this.imageUploadArea.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                this.imageUploadArea.classList.remove('dragover');
+            });
+
+            this.imageUploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                this.imageUploadArea.classList.remove('dragover');
+                
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    this.handleImageUpload(files[0]);
+                }
+            });
+        }
+
+        // Remove image button
+        if (this.removeImageButton) {
+            this.removeImageButton.addEventListener('click', () => {
+                this.clearImageUpload();
             });
         }
 
@@ -96,20 +159,40 @@ class UIManager {
      * Handle form submission
      */
     async handleFormSubmit() {
-        const userRequest = this.userRequestInput?.value?.trim();
+        const inputMethod = document.querySelector('input[name="inputMethod"]:checked')?.value;
         const priority = this.prioritySelect?.value || 'normal';
 
-        if (!userRequest) {
-            this.showNotification('Please enter a description for your 3D print request', 'error');
-            return;
+        let requestData = { priority };
+
+        // Validate input based on method
+        if (inputMethod === 'text') {
+            const userRequest = this.userRequestInput?.value?.trim();
+            if (!userRequest) {
+                this.showNotification('Please enter a description for your 3D print request', 'error');
+                return;
+            }
+            requestData.userRequest = userRequest;
+            requestData.inputType = 'text';
+        } else if (inputMethod === 'image') {
+            if (!this.uploadedImageFile) {
+                this.showNotification('Please upload an image file', 'error');
+                return;
+            }
+            requestData.inputType = 'image';
         }
 
         try {
             // Disable form during submission
             this.setFormLoading(true);
 
-            // Submit request via API
-            const result = await window.app.api.submitPrintRequest(userRequest, priority);
+            let result;
+            if (inputMethod === 'text') {
+                // Submit text request via existing API
+                result = await window.app.api.submitPrintRequest(requestData.userRequest, priority);
+            } else {
+                // Submit image request via new API endpoint
+                result = await window.app.api.submitImagePrintRequest(this.uploadedImageFile, priority);
+            }
             
             // Show success notification
             this.showNotification(
@@ -119,6 +202,11 @@ class UIManager {
 
             // Reset form
             this.printRequestForm.reset();
+            this.clearImageUpload();
+            
+            // Reset to text input method
+            document.querySelector('input[name="inputMethod"][value="text"]').checked = true;
+            this.handleInputMethodChange('text');
             
             // Add job to tracking
             this.addJobToList(result);
@@ -300,6 +388,67 @@ class UIManager {
     }
 
     /**
+     * Handle input method change (text vs image)
+     */
+    handleInputMethodChange(method) {
+        if (method === 'text') {
+            this.textInputSection.style.display = 'block';
+            this.imageInputSection.style.display = 'none';
+            this.userRequestInput.required = true;
+        } else if (method === 'image') {
+            this.textInputSection.style.display = 'none';
+            this.imageInputSection.style.display = 'block';
+            this.userRequestInput.required = false;
+        }
+    }
+
+    /**
+     * Handle image file upload
+     */
+    handleImageUpload(file) {
+        if (!file) return;
+
+        // Validate file type
+        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+        if (!allowedTypes.includes(file.type)) {
+            this.showNotification('Please upload a valid image file (JPG, PNG, or GIF)', 'error');
+            return;
+        }
+
+        // Validate file size (10MB limit)
+        const maxSize = 10 * 1024 * 1024; // 10MB in bytes
+        if (file.size > maxSize) {
+            this.showNotification('Image file is too large. Please choose a file under 10MB', 'error');
+            return;
+        }
+
+        // Store the file
+        this.uploadedImageFile = file;
+
+        // Create preview
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            this.previewImage.src = e.target.result;
+            this.uploadPlaceholder.style.display = 'none';
+            this.imagePreview.style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+
+        this.showNotification(`Image "${file.name}" uploaded successfully`, 'success');
+    }
+
+    /**
+     * Clear image upload
+     */
+    clearImageUpload() {
+        this.uploadedImageFile = null;
+        this.imageUpload.value = '';
+        this.previewImage.src = '';
+        this.uploadPlaceholder.style.display = 'block';
+        this.imagePreview.style.display = 'none';
+    }
+
+    /**
      * Show notification
      */
     showNotification(message, type = 'info', duration = 5000) {
@@ -335,6 +484,20 @@ class UIManager {
     autoResizeTextarea(textarea) {
         textarea.style.height = 'auto';
         textarea.style.height = textarea.scrollHeight + 'px';
+    }
+
+    /**
+     * Fill example text into the request field
+     */
+    fillExample(text) {
+        if (this.userRequestInput) {
+            this.userRequestInput.value = text;
+            this.userRequestInput.focus();
+            this.autoResizeTextarea(this.userRequestInput);
+            
+            // Show a subtle notification
+            this.showNotification('Example filled! You can modify it as needed.', 'success', 3000);
+        }
     }
 
     /**

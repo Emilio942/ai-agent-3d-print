@@ -1,0 +1,10 @@
+# Ender 3 PLA Profile
+infill_percentage: 20
+layer_height: 0.2
+material: PLA
+print_speed: 50
+printer: ender3
+nozzle_temperature: 200
+bed_temperature: 60
+supports: true
+adhesion_type: skirt

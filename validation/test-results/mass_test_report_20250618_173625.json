@@ -1,0 +1,527 @@
+{
+  "meta": {
+    "start_time": "2025-06-18T17:36:01.149409",
+    "end_time": "2025-06-18T17:36:25.381271",
+    "total_time_seconds": 24.231862,
+    "anzahl_begriffe": 50,
+    "erfolgsrate_prozent": 100.0
+  },
+  "statistics": {
+    "erfolgreich": 50,
+    "fehlgeschlagen": 0,
+    "kategorien": {
+      "elektronik": {
+        "success": 5,
+        "total": 5
+      },
+      "komplexe_objekte": {
+        "success": 4,
+        "total": 4
+      },
+      "spielzeug": {
+        "success": 4,
+        "total": 4
+      },
+      "werkzeuge": {
+        "success": 5,
+        "total": 5
+      },
+      "technik": {
+        "success": 6,
+        "total": 6
+      },
+      "transport": {
+        "success": 4,
+        "total": 4
+      },
+      "haushalt": {
+        "success": 4,
+        "total": 4
+      },
+      "medizin": {
+        "success": 4,
+        "total": 4
+      },
+      "sport": {
+        "success": 3,
+        "total": 3
+      },
+      "küche": {
+        "success": 6,
+        "total": 6
+      },
+      "möbel": {
+        "success": 3,
+        "total": 3
+      },
+      "schmuck": {
+        "success": 4,
+        "total": 4
+      },
+      "einfache_formen": {
+        "success": 1,
+        "total": 1
+      },
+      "garten": {
+        "success": 1,
+        "total": 1
+      },
+      "büro": {
+        "success": 2,
+        "total": 2
+      }
+    }
+  },
+  "results": {
+    "Sensor": {
+      "begriff": "Sensor",
+      "success": true,
+      "job_id": "7f8d6b0c-090e-4d30-a8f4-1de673ae80e2",
+      "processing_time": 0.4698939323425293,
+      "progress": 100.0,
+      "output_files": null,
+      "error": null
+    },
+    "Puzzle": {
+      "begriff": "Puzzle",
+      "success": true,
+      "job_id": "b1078a21-40af-4864-895b-d7922c08b139",
+      "processing_time": 0.46439218521118164,
+      "progress": 100.0,
+      "output_files": null,
+      "error": null
+    },
+    "Schraubenzieher": {
+      "begriff": "Schraubenzieher",
+      "success": true,
+      "job_id": "d134a9e0-0696-4294-8646-e16f53e799ba",
+      "processing_time": 0.4654109477996826,
+      "progress": 100.0,
+      "output_files": null,
+      "error": null
+    },
+    "Antenne": {
+      "begriff": "Antenne",
+      "success": true,
+      "job_id": "2a7135d8-d486-44c8-a9af-6808d5cb6e28",
+      "processing_time": 0.4657604694366455,
+      "progress": 100.0,
+      "output_files": null,
+      "error": null
+    },
+    "Stoßdämpfer": {
+      "begriff": "Stoßdämpfer",
+      "success": true,
+      "job_id": "6379267f-3177-46d6-b0aa-1bf8fe0b40f5",
+      "processing_time": 0.46626734733581543,
+      "progress": 100.0,
+      "output_files": null,
+      "error": null
+    },
+    "Kabelhalter": {
+      "begriff": "Kabelhalter",
+      "success": true,
+      "job_id": "68a3039e-d54f-44ef-ba62-4d451469bc3e",
+      "processing_time": 0.46479177474975586,
+      "progress": 100.0,
+      "output_files": null,
+      "error": null
+    },
+    "Lager": {
+      "begriff": "Lager",
+      "success": true,
+      "job_id": "f5054e5f-fbef-48ef-8e81-00fdde944042",
+      "processing_time": 0.4647817611694336,
+      "progress": 100.0,
+      "output_files": null,
+      "error": null
+    },
+    "Bandage": {
+      "begriff": "Bandage",
+      "success": true,
+      "job_id": "8bf0161c-d487-409f-95c0-4e6248867cd0",
+      "processing_time": 0.46623826026916504,
+      "progress": 100.0,
+      "output_files": null,
+      "error": null
+    },
+    "Racket": {
+      "begriff": "Racket",
+      "success": true,
+      "job_id": "f6fdd9d0-009a-4f09-b4f8-d7683b1408b5",
+      "processing_time": 0.46550989151000977,
+      "progress": 100.0,
+      "output_files": null,
+      "error": null
+    },
+    "Pinsel": {
+      "begriff": "Pinsel",
+      "success": true,
+      "job_id": "bea1e7d0-3cab-4ac8-ada5-575cde932edd",
+      "processing_time": 0.4682769775390625,
+      "progress": 100.0,
+      "output_files": null,
+      "error": null
+    },
+    "Salatschüssel": {
+      "begriff": "Salatschüssel",
+      "success": true,
+      "job_id": "dcee9159-a4e0-4ace-85ce-3ca2c4ccc117",
+      "processing_time": 0.4748375415802002,
+      "progress": 100.0,
+      "output_files": null,
+      "error": null
+    },
+    "Wippe": {
+      "begriff": "Wippe",
+      "success": true,
+      "job_id": "dd61fe46-5445-46c0-9635-26699905c2c4",
+      "processing_time": 0.4677162170410156,
+      "progress": 100.0,
+      "output_files": null,
+      "error": null
+    },
+    "Roboter": {
+      "begriff": "Roboter",
+      "success": true,
+      "job_id": "f220656c-ad1f-4527-9cfd-740fbb8b4638",
+      "processing_time": 0.46402907371520996,
+      "progress": 100.0,
+      "output_files": null,
+      "error": null
+    },
+    "Zange": {
+      "begriff": "Zange",
+      "success": true,
+      "job_id": "61aa119c-bd53-4a5d-a0a6-9ad1f26832b1",
+      "processing_time": 0.46512913703918457,
+      "progress": 100.0,
+      "output_files": null,
+      "error": null
+    },
+    "Implantat": {
+      "begriff": "Implantat",
+      "success": true,
+      "job_id": "8103a99c-b0c2-4774-a668-9e4bdc09d34c",
+      "processing_time": 0.4656808376312256,
+      "progress": 100.0,
+      "output_files": null,
+      "error": null
+    },
+    "Liege": {
+      "begriff": "Liege",
+      "success": true,
+      "job_id": "3356edd9-eeee-4336-8d96-2a44797755bb",
+      "processing_time": 0.46462321281433105,
+      "progress": 100.0,
+      "output_files": null,
+      "error": null
+    },
+    "Schrank": {
+      "begriff": "Schrank",
+      "success": true,
+      "job_id": "444c1336-00ae-49cb-b950-88fb362aa369",
+      "processing_time": 0.4661824703216553,
+      "progress": 100.0,
+      "output_files": null,
+      "error": null
+    },
+    "Boomerang": {
+      "begriff": "Boomerang",
+      "success": true,
+      "job_id": "a77a3aba-9418-414f-8dcc-1f07d9feb3d8",
+      "processing_time": 0.46491336822509766,
+      "progress": 100.0,
+      "output_files": null,
+      "error": null
+    },
+    "Medaillon": {
+      "begriff": "Medaillon",
+      "success": true,
+      "job_id": "15314a87-9a5c-41dc-af5e-0ffff3a22bb6",
+      "processing_time": 0.46486520767211914,
+      "progress": 100.0,
+      "output_files": null,
+      "error": null
+    },
+    "Kegel": {
+      "begriff": "Kegel",
+      "success": true,
+      "job_id": "f841645b-fef4-4b24-8f5e-38a7350ac0be",
+      "processing_time": 0.4652597904205322,
+      "progress": 100.0,
+      "output_files": null,
+      "error": null
+    },
+    "Taster": {
+      "begriff": "Taster",
+      "success": true,
+      "job_id": "b7ececa6-5b14-4f6b-93fe-43fe1be68ac2",
+      "processing_time": 0.4656221866607666,
+      "progress": 100.0,
+      "output_files": null,
+      "error": null
+    },
+    "Buchse": {
+      "begriff": "Buchse",
+      "success": true,
+      "job_id": "00ef56f7-863a-4271-baf4-1f6bb3ebc402",
+      "processing_time": 0.4863109588623047,
+      "progress": 100.0,
+      "output_files": null,
+      "error": null
+    },
+    "Maus": {
+      "begriff": "Maus",
+      "success": true,
+      "job_id": "89a5703f-70bd-4b26-9f60-3a025a891151",
+      "processing_time": 0.46702027320861816,
+      "progress": 100.0,
+      "output_files": null,
+      "error": null
+    },
+    "Flaschenöffner": {
+      "begriff": "Flaschenöffner",
+      "success": true,
+      "job_id": "c9f69bfc-94ad-479e-829d-63f75fb43a09",
+      "processing_time": 0.46607375144958496,
+      "progress": 100.0,
+      "output_files": null,
+      "error": null
+    },
+    "Mörser": {
+      "begriff": "Mörser",
+      "success": true,
+      "job_id": "037171c3-d04c-4399-b49d-1a6ca89f5259",
+      "processing_time": 0.4723532199859619,
+      "progress": 100.0,
+      "output_files": null,
+      "error": null
+    },
+    "Kette": {
+      "begriff": "Kette",
+      "success": true,
+      "job_id": "800822e5-ebf0-4c99-9b4a-9b6c1ce81d7a",
+      "processing_time": 0.4672534465789795,
+      "progress": 100.0,
+      "output_files": null,
+      "error": null
+    },
+    "Schüssel": {
+      "begriff": "Schüssel",
+      "success": true,
+      "job_id": "4cab19a3-bebd-47fe-9a8d-2af28ec90168",
+      "processing_time": 0.46699047088623047,
+      "progress": 100.0,
+      "output_files": null,
+      "error": null
+    },
+    "Vogeltränke": {
+      "begriff": "Vogeltränke",
+      "success": true,
+      "job_id": "917efad9-3e08-4e1e-b1da-90cfca7bc8fa",
+      "processing_time": 0.46952033042907715,
+      "progress": 100.0,
+      "output_files": null,
+      "error": null
+    },
+    "Teller": {
+      "begriff": "Teller",
+      "success": true,
+      "job_id": "f16a5c88-dd61-4bc2-bac2-6269a22c49ac",
+      "processing_time": 0.46559691429138184,
+      "progress": 100.0,
+      "output_files": null,
+      "error": null
+    },
+    "Stange": {
+      "begriff": "Stange",
+      "success": true,
+      "job_id": "060c8a02-38b4-45af-95e6-f8f055be595c",
+      "processing_time": 0.4657273292541504,
+      "progress": 100.0,
+      "output_files": null,
+      "error": null
+    },
+    "Welle": {
+      "begriff": "Welle",
+      "success": true,
+      "job_id": "993c9d54-4d3d-46d2-aa63-e7fe26e750de",
+      "processing_time": 0.46665406227111816,
+      "progress": 100.0,
+      "output_files": null,
+      "error": null
+    },
+    "Mikroskop": {
+      "begriff": "Mikroskop",
+      "success": true,
+      "job_id": "10185066-0e97-4602-897b-92cbbca6fc0c",
+      "processing_time": 0.4656391143798828,
+      "progress": 100.0,
+      "output_files": null,
+      "error": null
+    },
+    "Brotkorb": {
+      "begriff": "Brotkorb",
+      "success": true,
+      "job_id": "a8c62bb7-bf98-45f3-9174-42d8f800a0ea",
+      "processing_time": 0.47120022773742676,
+      "progress": 100.0,
+      "output_files": null,
+      "error": null
+    },
+    "Baustein": {
+      "begriff": "Baustein",
+      "success": true,
+      "job_id": "8a39fc99-ef02-4908-8f94-31d4ee722afd",
+      "processing_time": 0.46778082847595215,
+      "progress": 100.0,
+      "output_files": null,
+      "error": null
+    },
+    "Marmeladenglas": {
+      "begriff": "Marmeladenglas",
+      "success": true,
+      "job_id": "d61b55e6-a82f-4b54-85c6-16d375e6d3a4",
+      "processing_time": 0.466658353805542,
+      "progress": 100.0,
+      "output_files": null,
+      "error": null
+    },
+    "Ventil": {
+      "begriff": "Ventil",
+      "success": true,
+      "job_id": "3d029b4e-f30f-4cbc-afe0-1778756b064c",
+      "processing_time": 0.46593666076660156,
+      "progress": 100.0,
+      "output_files": null,
+      "error": null
+    },
+    "Prothese": {
+      "begriff": "Prothese",
+      "success": true,
+      "job_id": "ab8913d8-37d7-4870-a73c-9a63cf929e0f",
+      "processing_time": 0.4685487747192383,
+      "progress": 100.0,
+      "output_files": null,
+      "error": null
+    },
+    "Thermometer": {
+      "begriff": "Thermometer",
+      "success": true,
+      "job_id": "dcc6f03d-892a-4adb-8dd6-bd76ff2c7ecd",
+      "processing_time": 0.46617937088012695,
+      "progress": 100.0,
+      "output_files": null,
+      "error": null
+    },
+    "Butterdose": {
+      "begriff": "Butterdose",
+      "success": true,
+      "job_id": "8300c6cb-4871-47da-8410-ddf8d4d1ecb4",
+      "processing_time": 0.46524858474731445,
+      "progress": 100.0,
+      "output_files": null,
+      "error": null
+    },
+    "Lampe": {
+      "begriff": "Lampe",
+      "success": true,
+      "job_id": "c323c2eb-dd86-40f0-8b3d-848843175293",
+      "processing_time": 0.4645726680755615,
+      "progress": 100.0,
+      "output_files": null,
+      "error": null
+    },
+    "Stern": {
+      "begriff": "Stern",
+      "success": true,
+      "job_id": "9fa9a6b9-e6d6-4cce-9ccd-cac79875ef17",
+      "processing_time": 0.472198486328125,
+      "progress": 100.0,
+      "output_files": null,
+      "error": null
+    },
+    "Briefklemme": {
+      "begriff": "Briefklemme",
+      "success": true,
+      "job_id": "5c9251cb-1d15-4115-b5bf-69d3f9e33548",
+      "processing_time": 0.4675259590148926,
+      "progress": 100.0,
+      "output_files": null,
+      "error": null
+    },
+    "Zirkel": {
+      "begriff": "Zirkel",
+      "success": true,
+      "job_id": "04253b94-2a9d-456a-b2ff-553d00cc3576",
+      "processing_time": 0.4670073986053467,
+      "progress": 100.0,
+      "output_files": null,
+      "error": null
+    },
+    "Lineal": {
+      "begriff": "Lineal",
+      "success": true,
+      "job_id": "484a5395-acfd-407a-b641-aa2156e5e308",
+      "processing_time": 0.7867515087127686,
+      "progress": 100.0,
+      "output_files": null,
+      "error": null
+    },
+    "Felge": {
+      "begriff": "Felge",
+      "success": true,
+      "job_id": "318f49a5-eb15-4530-93d9-588a773b515e",
+      "processing_time": 0.9920246601104736,
+      "progress": 100.0,
+      "output_files": null,
+      "error": null
+    },
+    "Zuckerdose": {
+      "begriff": "Zuckerdose",
+      "success": true,
+      "job_id": "91d98e2b-23a5-431c-8cd6-c1d93530b26b",
+      "processing_time": 0.46429443359375,
+      "progress": 100.0,
+      "output_files": null,
+      "error": null
+    },
+    "Brieföffner": {
+      "begriff": "Brieföffner",
+      "success": true,
+      "job_id": "822bae21-102a-408e-bf34-be3e09b0e9b9",
+      "processing_time": 0.4653141498565674,
+      "progress": 100.0,
+      "output_files": null,
+      "error": null
+    },
+    "Motor": {
+      "begriff": "Motor",
+      "success": true,
+      "job_id": "bf7249c8-b0fd-4ec7-9bad-76a7de190ed5",
+      "processing_time": 0.4688704013824463,
+      "progress": 100.0,
+      "output_files": null,
+      "error": null
+    },
+    "Nocken": {
+      "begriff": "Nocken",
+      "success": true,
+      "job_id": "15e18e11-857b-4e2e-b248-04aee6c3cb02",
+      "processing_time": 0.47168850898742676,
+      "progress": 100.0,
+      "output_files": null,
+      "error": null
+    },
+    "Herz": {
+      "begriff": "Herz",
+      "success": true,
+      "job_id": "4c0d2023-061d-4d2b-a3a4-b7456f867620",
+      "processing_time": 0.4696834087371826,
+      "progress": 100.0,
+      "output_files": null,
+      "error": null
+    }
+  }
+}

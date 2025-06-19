@@ -391,6 +391,115 @@ async def health_check():
 
 
 # =============================================================================
+# AI MODEL MANAGEMENT ENDPOINTS
+# =============================================================================
+
+@app.get("/ai-models", response_model=dict)
+async def get_available_ai_models():
+    """Get list of available AI models for intent recognition."""
+    try:
+        # In a real implementation, this would connect to the research agent
+        from agents.research_agent import ResearchAgent
+        
+        research_agent = ResearchAgent()
+        models = research_agent.get_available_ai_models()
+        
+        return {
+            "success": True,
+            "models": models,
+            "total_models": len(models)
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get AI models: {str(e)}"
+        )
+
+
+@app.post("/ai-models/select")
+async def select_ai_model(model_name: str = Query(..., description="Name of the AI model to select")):
+    """Select the preferred AI model for intent recognition."""
+    try:
+        from agents.research_agent import ResearchAgent
+        
+        research_agent = ResearchAgent()
+        success = research_agent.set_preferred_ai_model(model_name)
+        
+        if not success:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Failed to select AI model: {model_name}"
+            )
+        
+        return {
+            "success": True,
+            "message": f"AI model '{model_name}' selected successfully",
+            "selected_model": model_name
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to select AI model: {str(e)}"
+        )
+
+
+@app.get("/ai-models/status")
+async def get_ai_model_status():
+    """Get current AI model status and usage statistics."""
+    try:
+        from agents.research_agent import ResearchAgent
+        
+        research_agent = ResearchAgent()
+        status = research_agent.get_ai_model_status()
+        
+        return {
+            "success": True,
+            "status": status
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to get AI model status: {str(e)}"
+        )
+
+
+@app.post("/ai-models/test")
+async def test_ai_model(
+    model_name: str = Query(..., description="Name of the AI model to test"),
+    test_query: str = Query("Create a small gear", description="Test query for the AI model")
+):
+    """Test a specific AI model with a sample query."""
+    try:
+        from agents.research_agent import ResearchAgent
+        
+        research_agent = ResearchAgent()
+        
+        # Temporarily set the model and test it
+        original_model = getattr(research_agent.ai_model_manager, "preferred_model", None)
+        research_agent.set_preferred_ai_model(model_name)
+        
+        # Test the model
+        result = research_agent.extract_intent(test_query)
+        
+        # Restore original model if it existed
+        if original_model:
+            research_agent.set_preferred_ai_model(original_model)
+        
+        return {
+            "success": True,
+            "model_tested": model_name,
+            "test_query": test_query,
+            "result": result,
+            "confidence": result.get("confidence", 0.0)
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to test AI model: {str(e)}"
+        )
+
+
+# =============================================================================
 # WEBSOCKET ENDPOINTS
 # =============================================================================
 

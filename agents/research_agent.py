@@ -1,10 +1,10 @@
 """
-Research Agent - NLP Intent Recognition with Web Research and Rate Limiting
+Research Agent - NLP Intent Recognition with Multi-AI Model Support
 
 This module implements the Research Agent for the AI Agent 3D Print System with
-robust natural language processing capabilities to extract user intents and
-convert them into structured 3D object specifications. Now includes web research
-capabilities with DuckDuckGo API integration, caching, and rate limiting.
+robust natural language processing capabilities using multiple AI backends.
+Now supports OpenAI GPT, Anthropic Claude, local models, and the original
+spaCy+transformers pipeline with automatic fallback.
 """
 
 import re
@@ -12,11 +12,13 @@ import json
 import spacy
 import time
 import hashlib
+import yaml
 from typing import Dict, List, Any, Optional, Tuple
 from dataclasses import dataclass, field
 from enum import Enum
 import logging
 from datetime import datetime, timedelta
+from pathlib import Path
 
 # Web research dependencies
 import requests
@@ -31,6 +33,7 @@ from core.base_agent import BaseAgent
 from core.api_schemas import TaskResult, ResearchAgentInput, ResearchAgentOutput
 from core.logger import AgentLogger
 from core.exceptions import ValidationError, SystemResourceError
+from core.ai_models import AIModelManager, AIModelConfig, AIModelType
 
 
 class ConfidenceLevel(Enum):
@@ -87,9 +90,21 @@ class ResearchAgent(BaseAgent):
     """
     
     def __init__(self, agent_id: str = "research_agent", config: Optional[Dict[str, Any]] = None):
-        """Initialize Research Agent with NLP and web research capabilities."""
+        """Initialize Research Agent with Multi-AI Model support and web research capabilities."""
         super().__init__(agent_id, config)
         self.logger = AgentLogger("research_agent")
+        
+        # Initialize AI Model Manager for enhanced intent recognition
+        try:
+            self.ai_model_manager = AIModelManager()
+            # Register default spaCy model
+            from core.ai_models import AIModelConfig, AIModelType
+            spacy_config = AIModelConfig(model_type=AIModelType.SPACY_TRANSFORMERS)
+            self.ai_model_manager.register_model(AIModelType.SPACY_TRANSFORMERS, spacy_config)
+            self.logger.info("AI Model Manager initialized with spaCy model")
+        except Exception as e:
+            self.logger.error(f"Failed to initialize AI Model Manager: {str(e)}")
+            self.ai_model_manager = None
         
         # Load spaCy model
         try:
@@ -111,7 +126,7 @@ class ResearchAgent(BaseAgent):
         # Initialize web research components
         self._initialize_web_research()
         
-        self.logger.info("Research Agent initialized with NLP and web research capabilities")
+        self.logger.info("Research Agent initialized with Multi-AI Model support and web research capabilities")
     
     def _initialize_web_research(self) -> None:
         """Initialize web research components."""
@@ -274,7 +289,7 @@ class ResearchAgent(BaseAgent):
             r"(\d+(?:\.\d+)?)\s*(?:cm|mm|inch|in)?\s*(?:in\s*)?(?:size|diameter|width|height)"
         ]
     
-    def execute_task(self, task_details: Dict[str, Any]) -> TaskResult:
+    async def execute_task(self, task_details: Dict[str, Any]) -> TaskResult:
         """
         Execute intent recognition task with optional web research.
         
@@ -296,8 +311,8 @@ class ResearchAgent(BaseAgent):
             
             self.logger.info(f"Starting intent recognition for: {user_request[:100]}...")
             
-            # Extract intent using primary method (spaCy + patterns)
-            intent_result = self.extract_intent(user_request, context, analysis_depth)
+            # Extract intent using AI-enhanced method (now async)
+            intent_result = await self.extract_intent(user_request, context, analysis_depth)
             
             # Perform web research if enabled and confidence is low
             if (enable_web_research and 
@@ -1079,14 +1094,14 @@ class ResearchAgent(BaseAgent):
         return specifications
 
     # [All the existing intent extraction methods remain the same]
-    def extract_intent(
+    async def extract_intent(
         self,
         user_request: str,
         context: Dict[str, Any] = None,
         analysis_depth: str = "standard"
     ) -> Dict[str, Any]:
         """
-        Extract intent from user request with fallback strategies.
+        Extract intent from user request with multi-AI model support and fallback strategies.
         
         Args:
             user_request: Natural language description
@@ -1097,6 +1112,16 @@ class ResearchAgent(BaseAgent):
             Dictionary with extracted intent information
         """
         context = context or {}
+        
+        # Try enhanced AI model extraction first (if available)
+        if self.ai_model_manager and self.ai_model_manager.models:
+            try:
+                intent_result = await self._extract_intent_ai_enhanced(user_request, context, analysis_depth)
+                if intent_result["confidence"] >= ConfidenceLevel.MEDIUM.value:
+                    intent_result["method_used"] = "ai_enhanced"
+                    return intent_result
+            except Exception as e:
+                self.logger.warning(f"AI-enhanced intent extraction failed: {str(e)}")
         
         # Try primary method (spaCy NER + Pattern Matching)
         if self.nlp:
@@ -1120,6 +1145,65 @@ class ResearchAgent(BaseAgent):
         intent_result = self._extract_intent_keywords(user_request, context)
         intent_result["method_used"] = "keyword_fallback"
         return intent_result
+    
+    async def _extract_intent_ai_enhanced(
+        self,
+        user_request: str,
+        context: Dict[str, Any],
+        analysis_depth: str
+    ) -> Dict[str, Any]:
+        """Extract intent using AI models with fallback to traditional methods."""
+        try:
+            # Try to get AI model analysis
+            ai_response = await self.ai_model_manager.process_intent(
+                user_input=user_request,
+                context=context
+            )
+            
+            if ai_response and not ai_response.error and ai_response.confidence >= 0.5:
+                # Parse AI response content (should be JSON)
+                import json
+                try:
+                    ai_data = json.loads(ai_response.content) if ai_response.content else {}
+                except json.JSONDecodeError:
+                    ai_data = {"intent": "unknown", "confidence": ai_response.confidence}
+                
+                # Convert AI response to our expected format
+                result = {
+                    "object_type": ai_data.get("intent", "unknown"),
+                    "dimensions": {"x": 20.0, "y": 20.0, "z": 20.0},  # Default dimensions
+                    "material_type": "pla",  # Default material
+                    "special_features": [],
+                    "confidence": ai_response.confidence,
+                    "specifications": {},
+                    "material_recommendations": ["PLA"],
+                    "complexity_score": 5.0,
+                    "feasibility_assessment": "AI analysis suggests feasible design",
+                    "recommendations": [],
+                    "ai_model_used": ai_response.model_used,
+                    "processing_time": ai_response.processing_time,
+                    "ai_entities": ai_data.get("entities", [])
+                }
+                
+                # Enhance with traditional pattern matching for validation
+                if self.nlp:
+                    traditional_result = self._extract_intent_spacy(user_request, context, analysis_depth)
+                    # Combine insights and boost confidence if both methods agree
+                    if traditional_result["object_type"] == result["object_type"]:
+                        result["confidence"] = min(0.95, result["confidence"] + 0.1)
+                        result["validation"] = "ai_traditional_agreement"
+                    else:
+                        result["validation"] = "ai_traditional_divergence"
+                        result["traditional_object_type"] = traditional_result["object_type"]
+                    
+                self.logger.info(f"AI-enhanced intent extraction successful with confidence: {result['confidence']}")
+                return result
+                
+        except Exception as e:
+            self.logger.error(f"AI-enhanced intent extraction failed: {str(e)}")
+            
+        # Fallback to traditional spaCy method
+        return self._extract_intent_spacy(user_request, context, analysis_depth)
     
     def _extract_intent_spacy(
         self,
@@ -1717,20 +1801,100 @@ class ResearchAgent(BaseAgent):
             raise ValidationError("analysis_depth must be 'basic', 'standard', or 'detailed'")
         
         return True
-
-
-# Utility functions for testing
-def create_test_research_agent() -> ResearchAgent:
-    """Create a research agent for testing."""
-    return ResearchAgent("test_research_agent")
-
-
-def create_test_intent_request(user_request: str, analysis_depth: str = "standard", enable_web_research: bool = False) -> Dict[str, Any]:
-    """Create a test intent recognition request with web research option."""
-    return {
-        "task_id": f"research_{hash(user_request) % 10000}",
-        "user_request": user_request,
-        "context": {},
-        "analysis_depth": analysis_depth,
-        "enable_web_research": enable_web_research
-    }
+    
+    def get_available_ai_models(self) -> List[Dict[str, Any]]:
+        """Get list of available AI models and their status."""
+        if not self.ai_model_manager:
+            return []
+        
+        return self.ai_model_manager.get_available_models()
+    
+    def register_ai_model(self, model_type: str, api_key: str = None, api_url: str = None, model_name: str = None) -> bool:
+        """Register a new AI model with the manager."""
+        if not self.ai_model_manager:
+            self.logger.error("AI Model Manager not available")
+            return False
+        
+        try:
+            from core.ai_models import AIModelType, AIModelConfig
+            
+            # Convert string to enum
+            if model_type == "openai_gpt":
+                model_type_enum = AIModelType.OPENAI_GPT
+                config = AIModelConfig(
+                    model_type=model_type_enum,
+                    api_key=api_key,
+                    model_name=model_name or "gpt-3.5-turbo"
+                )
+            elif model_type == "anthropic_claude":
+                model_type_enum = AIModelType.ANTHROPIC_CLAUDE
+                config = AIModelConfig(
+                    model_type=model_type_enum,
+                    api_key=api_key,
+                    model_name=model_name or "claude-3-sonnet-20240229"
+                )
+            elif model_type == "local_llama":
+                model_type_enum = AIModelType.LOCAL_LLAMA
+                config = AIModelConfig(
+                    model_type=model_type_enum,
+                    api_base=api_url or "http://localhost:11434",
+                    model_name=model_name or "llama2:7b"
+                )
+            else:
+                self.logger.error(f"Unsupported model type: {model_type}")
+                return False
+            
+            success = self.ai_model_manager.register_model(model_type_enum, config)
+            if success:
+                self.logger.info(f"Successfully registered AI model: {model_type}")
+            else:
+                self.logger.warning(f"AI model registered but connection failed: {model_type}")
+            
+            return success
+            
+        except Exception as e:
+            self.logger.error(f"Failed to register AI model: {str(e)}")
+            return False
+    
+    def set_preferred_ai_model(self, model_type: str) -> bool:
+        """Set the preferred AI model for intent analysis."""
+        if not self.ai_model_manager:
+            self.logger.error("AI Model Manager not available")
+            return False
+        
+        try:
+            from core.ai_models import AIModelType
+            
+            # Convert string to enum
+            model_type_map = {
+                "spacy_transformers": AIModelType.SPACY_TRANSFORMERS,
+                "openai_gpt": AIModelType.OPENAI_GPT,
+                "anthropic_claude": AIModelType.ANTHROPIC_CLAUDE,
+                "local_llama": AIModelType.LOCAL_LLAMA,
+                "local_mistral": AIModelType.LOCAL_MISTRAL
+            }
+            
+            if model_type not in model_type_map:
+                self.logger.error(f"Unknown model type: {model_type}")
+                return False
+            
+            model_type_enum = model_type_map[model_type]
+            success = self.ai_model_manager.set_default_model(model_type_enum)
+            
+            if success:
+                self.logger.info(f"Preferred AI model set to: {model_type}")
+            else:
+                self.logger.error(f"Failed to set preferred AI model: {model_type}")
+            
+            return success
+            
+        except Exception as e:
+            self.logger.error(f"Failed to set preferred AI model: {str(e)}")
+            return False
+    
+    def get_ai_model_status(self) -> Dict[str, Any]:
+        """Get current AI model status and usage statistics."""
+        if not self.ai_model_manager:
+            return {"status": "AI Model Manager not available"}
+        
+        return self.ai_model_manager.get_model_stats()

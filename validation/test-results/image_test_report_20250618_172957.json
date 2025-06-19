@@ -1,0 +1,152 @@
+{
+  "meta": {
+    "start_time": "2025-06-18T17:29:32.513328",
+    "end_time": "2025-06-18T17:29:57.404903",
+    "total_time_seconds": 24.891575
+  },
+  "conversion_results": {
+    "test_images/dreieck.png": {
+      "image_path": "test_images/dreieck.png",
+      "image_name": "dreieck.png",
+      "success": true,
+      "processing_time": 2.219437837600708,
+      "model_id": "img3d_20250618_172934_ed0553a1",
+      "model_path": "/data/converted_models/img3d_20250618_172934_ed0553a1.stl",
+      "vertices": 18500,
+      "faces": 37000,
+      "file_size": "3.2MB",
+      "error": null
+    },
+    "test_images/text_test.png": {
+      "image_path": "test_images/text_test.png",
+      "image_name": "text_test.png",
+      "success": true,
+      "processing_time": 2.2212750911712646,
+      "model_id": "img3d_20250618_172936_6d92d6f0",
+      "model_path": "/data/converted_models/img3d_20250618_172936_6d92d6f0.stl",
+      "vertices": 18500,
+      "faces": 37000,
+      "file_size": "3.2MB",
+      "error": null
+    },
+    "test_images/zahnrad.png": {
+      "image_path": "test_images/zahnrad.png",
+      "image_name": "zahnrad.png",
+      "success": true,
+      "processing_time": 2.2208712100982666,
+      "model_id": "img3d_20250618_172939_a4f759e5",
+      "model_path": "/data/converted_models/img3d_20250618_172939_a4f759e5.stl",
+      "vertices": 18500,
+      "faces": 37000,
+      "file_size": "3.2MB",
+      "error": null
+    },
+    "test_images/quadrat.png": {
+      "image_path": "test_images/quadrat.png",
+      "image_name": "quadrat.png",
+      "success": true,
+      "processing_time": 2.2208914756774902,
+      "model_id": "img3d_20250618_172941_f8d12974",
+      "model_path": "/data/converted_models/img3d_20250618_172941_f8d12974.stl",
+      "vertices": 18500,
+      "faces": 37000,
+      "file_size": "3.2MB",
+      "error": null
+    },
+    "test_images/herz.png": {
+      "image_path": "test_images/herz.png",
+      "image_name": "herz.png",
+      "success": true,
+      "processing_time": 2.218987226486206,
+      "model_id": "img3d_20250618_172943_d328c47c",
+      "model_path": "/data/converted_models/img3d_20250618_172943_d328c47c.stl",
+      "vertices": 18500,
+      "faces": 37000,
+      "file_size": "3.2MB",
+      "error": null
+    },
+    "test_images/kreis.png": {
+      "image_path": "test_images/kreis.png",
+      "image_name": "kreis.png",
+      "success": true,
+      "processing_time": 2.2194650173187256,
+      "model_id": "img3d_20250618_172945_75a2648c",
+      "model_path": "/data/converted_models/img3d_20250618_172945_75a2648c.stl",
+      "vertices": 18500,
+      "faces": 37000,
+      "file_size": "3.2MB",
+      "error": null
+    },
+    "test_images/stern.png": {
+      "image_path": "test_images/stern.png",
+      "image_name": "stern.png",
+      "success": true,
+      "processing_time": 2.2189197540283203,
+      "model_id": "img3d_20250618_172947_157c4d74",
+      "model_path": "/data/converted_models/img3d_20250618_172947_157c4d74.stl",
+      "vertices": 18500,
+      "faces": 37000,
+      "file_size": "3.2MB",
+      "error": null
+    },
+    "test_circle.png": {
+      "image_path": "test_circle.png",
+      "image_name": "test_circle.png",
+      "success": true,
+      "processing_time": 2.219467878341675,
+      "model_id": "img3d_20250618_172950_4e8863e1",
+      "model_path": "/data/converted_models/img3d_20250618_172950_4e8863e1.stl",
+      "vertices": 18500,
+      "faces": 37000,
+      "file_size": "3.2MB",
+      "error": null
+    },
+    "test_shapes.png": {
+      "image_path": "test_shapes.png",
+      "image_name": "test_shapes.png",
+      "success": true,
+      "processing_time": 2.2193403244018555,
+      "model_id": "img3d_20250618_172952_448a918e",
+      "model_path": "/data/converted_models/img3d_20250618_172952_448a918e.stl",
+      "vertices": 18500,
+      "faces": 37000,
+      "file_size": "3.2MB",
+      "error": null
+    }
+  },
+  "workflow_results": {
+    "test_images/dreieck.png": {
+      "image_path": "test_images/dreieck.png",
+      "image_name": "dreieck.png",
+      "success": true,
+      "job_id": "7dfbb6aa-0b0d-440d-be80-cc32106f1323",
+      "processing_time": 2.0836687088012695,
+      "output_files": {
+        "stl": "/tmp/tmpsl_skfzg.stl",
+        "gcode": "/tmp/tmpb3jwc34n.gcode"
+      },
+      "error": null
+    },
+    "test_images/text_test.png": {
+      "image_path": "test_images/text_test.png",
+      "image_name": "text_test.png",
+      "success": false,
+      "job_id": null,
+      "processing_time": 1.6943697929382324,
+      "output_files": null,
+      "error": "Workflow failed: Failed at step '3D printing': Already streaming G-code [GCODESTREAMINGERROR] Details: line_number=0, gcode_line="
+    },
+    "test_images/zahnrad.png": {
+      "image_path": "test_images/zahnrad.png",
+      "image_name": "zahnrad.png",
+      "success": true,
+      "job_id": "0f08c22e-03a0-4e3e-bc77-5a3b5e757479",
+      "processing_time": 1.1303086280822754,
+      "output_files": {
+        "stl": "/tmp/tmp9g2b9yie.stl",
+        "gcode": "/tmp/tmpmpsau_mm.gcode"
+      },
+      "error": null
+    }
+  }
+}

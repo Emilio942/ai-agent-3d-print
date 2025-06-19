@@ -7,15 +7,20 @@
     <meta name="description" content="Submit 3D print requests and track progress in real-time">
     
     <!-- CSS -->
-    <link rel="stylesheet" href="css/styles.css">
-    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="/web/css/styles.css">
+    <link rel="stylesheet" href="/web/css/components.css">
+    <link rel="stylesheet" href="/web/css/advanced.css">
+    <link rel="stylesheet" href="/web/css/mobile-enhancements.css">
     
     <!-- PWA Manifest -->
-    <link rel="manifest" href="manifest.json">
+    <link rel="manifest" href="/web/manifest.json">
     
     <!-- Meta tags for PWA -->
     <meta name="theme-color" content="#2563eb">
-    <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
+    <link rel="apple-touch-icon" href="/web/assets/icons/icon-192.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="mobile-web-app-capable" content="yes">
     
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -43,41 +48,334 @@
             <!-- Print Request Form -->
             <section class="form-section">
                 <div class="card">
-                    <h2 class="section-title">Create New Print Job</h2>
-                    <form id="printRequestForm" class="print-form">
-                        <div class="form-group">
-                            <label for="userRequest" class="form-label">
-                                Describe what you want to 3D print:
-                            </label>
-                            <textarea 
-                                id="userRequest" 
-                                name="userRequest" 
-                                class="form-input" 
-                                placeholder="E.g., Create a small gear for a clock mechanism with 2cm diameter..."
-                                rows="4"
-                                required
-                                minlength="10"
-                                maxlength="1000"
-                            ></textarea>
-                            <div class="form-help">
-                                Describe your object in detail. The AI will analyze your request and generate the 3D model.
+                    <div class="tab-container">
+                        <div class="tab-header">
+                            <button class="tab-button active" data-tab="text-request">Text Request</button>
+                            <button class="tab-button" data-tab="image-to-3d">Image to 3D</button>
+                            <button class="tab-button" data-tab="printer-management">Printers</button>
+                            <button class="tab-button" data-tab="3d-viewer">3D Viewer</button>
+                            <button class="tab-button" data-tab="voice-control">Voice Control</button>
+                            <button class="tab-button" data-tab="analytics">Analytics</button>
+                            <button class="tab-button" data-tab="templates">Templates</button>
+                        </div>
+                        
+                        <!-- Text Request Tab -->
+                        <div class="tab-content active" id="text-request">
+                            <h2 class="section-title">Create New Print Job</h2>
+                            <form id="printRequestForm" class="print-form">
+                                <div class="form-group">
+                                    <label for="userRequest" class="form-label">
+                                        Describe what you want to 3D print:
+                                    </label>
+                                    <textarea 
+                                        id="userRequest" 
+                                        name="userRequest" 
+                                        class="form-input" 
+                                        placeholder="E.g., Create a small gear for a clock mechanism with 2cm diameter..."
+                                        rows="4"
+                                        required
+                                        minlength="10"
+                                        maxlength="1000"
+                                    ></textarea>
+                                    <div class="form-help">
+                                        💡 <strong>Tips:</strong> Be specific about size, material, and function. Example: "2cm plastic gear with 12 teeth"
+                                    </div>
+                                    <div class="quick-examples">
+                                        <span class="example-tag" onclick="fillExample('Create a small phone stand with 15-degree angle')">📱 Phone Stand</span>
+                                        <span class="example-tag" onclick="fillExample('Make a 3cm cube with rounded corners')">🧊 Simple Cube</span>
+                                        <span class="example-tag" onclick="fillExample('Design a pencil holder 10cm tall, 5cm diameter')">✏️ Pencil Holder</span>
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="priority" class="form-label">Priority Level:</label>
+                                    <select id="priority" name="priority" class="form-input">
+                                        <option value="low">Low</option>
+                                        <option value="normal" selected>Normal</option>
+                                        <option value="high">High</option>
+                                        <option value="urgent">Urgent</option>
+                                    </select>
+                                </div>
+
+                                <button type="submit" class="btn btn-primary" id="submitButton">
+                                    <span class="btn-text">Submit Print Request</span>
+                                </button>
+                            </form>
+                        </div>
+                        
+                        <!-- Image to 3D Tab -->
+                        <div class="tab-content" id="image-to-3d">
+                            <h2 class="section-title">Convert Image to 3D Model</h2>
+                            <form id="imageToModelForm" class="print-form">
+                                <div class="form-group">
+                                    <label for="imageUpload" class="form-label">
+                                        Upload Image:
+                                    </label>
+                                    <div class="file-upload-area" id="fileUploadArea">
+                                        <input type="file" id="imageUpload" accept="image/*" class="file-input">
+                                        <div class="upload-placeholder">
+                                            <div class="upload-icon">📸</div>
+                                            <p>Click to upload or drag and drop an image</p>
+                                            <small>Supports: JPG, PNG, GIF, WebP</small>
+                                        </div>
+                                        <div class="image-preview" id="imagePreview" style="display: none;"></div>
+                                    </div>
+                                </div>
+                                
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="conversionStyle" class="form-label">Style:</label>
+                                        <select id="conversionStyle" name="style" class="form-input">
+                                            <option value="realistic">Realistic</option>
+                                            <option value="artistic">Artistic</option>
+                                            <option value="geometric">Geometric</option>
+                                            <option value="organic">Organic</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label for="conversionQuality" class="form-label">Quality:</label>
+                                        <select id="conversionQuality" name="quality" class="form-input">
+                                            <option value="low">Low (Fast)</option>
+                                            <option value="medium" selected>Medium</option>
+                                            <option value="high">High (Slow)</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label for="outputFormat" class="form-label">Format:</label>
+                                        <select id="outputFormat" name="format" class="form-input">
+                                            <option value="stl" selected>STL</option>
+                                            <option value="obj">OBJ</option>
+                                            <option value="ply">PLY</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                <button type="submit" class="btn btn-primary" id="convertButton" disabled>
+                                    <span class="btn-text">Convert to 3D Model</span>
+                                </button>
+                            </form>
+                            
+                            <!-- Converted Models List -->
+                            <div class="converted-models" id="convertedModels" style="display: none;">
+                                <h3>Your Converted Models</h3>
+                                <div class="models-grid" id="modelsGrid">
+                                    <!-- Models will be populated here -->
+                                </div>
                             </div>
                         </div>
-
-                        <div class="form-group">
-                            <label for="priority" class="form-label">Priority Level:</label>
-                            <select id="priority" name="priority" class="form-input">
-                                <option value="low">Low</option>
-                                <option value="normal" selected>Normal</option>
-                                <option value="high">High</option>
-                                <option value="urgent">Urgent</option>
-                            </select>
+                        
+                        <!-- Printer Management Tab -->
+                        <div class="tab-content" id="printer-management">
+                            <h2 class="section-title">Printer Management</h2>
+                            
+                            <!-- Printer Discovery Section -->
+                            <div class="printer-discovery-section">
+                                <div class="section-header">
+                                    <h3>Discover Printers</h3>
+                                    <button class="btn btn-primary" id="discoverPrintersBtn">
+                                        <span class="btn-icon">🔍</span>
+                                        <span class="btn-text">Scan for Printers</span>
+                                    </button>
+                                </div>
+                                
+                                <div class="discovery-status" id="discoveryStatus">
+                                    <p>Click "Scan for Printers" to discover connected 3D printers.</p>
+                                </div>
+                                
+                                <!-- Discovered Printers List -->
+                                <div class="discovered-printers" id="discoveredPrinters">
+                                    <!-- Printer cards will be populated here -->
+                                </div>
+                            </div>
+                            
+                            <!-- Connected Printers Section -->
+                            <div class="connected-printers-section">
+                                <h3>Connected Printers</h3>
+                                <div class="connected-printers" id="connectedPrinters">
+                                    <p class="no-printers-message">No printers connected yet.</p>
+                                </div>
+                            </div>
+                            
+                            <!-- Printer Status Section -->
+                            <div class="printer-status-section">
+                                <h3>Printer Status</h3>
+                                <div class="status-grid" id="printerStatusGrid">
+                                    <!-- Status cards will be populated here -->
+                                </div>
+                            </div>
                         </div>
-
-                        <button type="submit" class="btn btn-primary" id="submitButton">
-                            <span class="btn-text">Submit Print Request</span>
-                        </button>
-                    </form>
+                        
+                        <!-- 3D Viewer Tab -->
+                        <div class="tab-content" id="3d-viewer">
+                            <h2 class="section-title">3D Model Viewer</h2>
+                            <div class="viewer-container">
+                                <div class="viewer-controls">
+                                    <button class="btn btn-secondary" id="loadModelBtn">Load Model</button>
+                                    <button class="btn btn-secondary" id="resetViewBtn">Reset View</button>
+                                    <button class="btn btn-secondary" id="wireframeBtn">Wireframe</button>
+                                    <div class="viewer-info" id="viewerInfo">
+                                        No model loaded
+                                    </div>
+                                </div>
+                                <div class="viewer-canvas" id="viewerCanvas">
+                                    <!-- Three.js canvas will be inserted here -->
+                                </div>
+                                <div class="viewer-status" id="viewerStatus">
+                                    Ready to load 3D models
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Voice Control Tab -->
+                        <div class="tab-content" id="voice-control">
+                            <h2 class="section-title">Voice Control</h2>
+                            <div class="voice-control-container">
+                                <div class="voice-status" id="voiceStatus">
+                                    <div class="status-indicator" id="voiceIndicator"></div>
+                                    <span class="status-text" id="voiceStatusText">Voice control inactive</span>
+                                </div>
+                                
+                                <div class="voice-controls">
+                                    <button class="btn btn-primary" id="startVoiceBtn">
+                                        <span class="btn-icon">🎤</span>
+                                        Start Voice Control
+                                    </button>
+                                    <button class="btn btn-secondary" id="stopVoiceBtn" disabled>
+                                        <span class="btn-icon">🛑</span>
+                                        Stop Voice Control
+                                    </button>
+                                </div>
+                                
+                                <div class="voice-test">
+                                    <h3>Test Voice Commands</h3>
+                                    <div class="form-group">
+                                        <label for="textCommand" class="form-label">Type a command to test:</label>
+                                        <input type="text" id="textCommand" class="form-input" 
+                                               placeholder="e.g., Print a small gear" />
+                                        <button class="btn btn-secondary" id="testCommandBtn">Test Command</button>
+                                    </div>
+                                </div>
+                                
+                                <div class="voice-output" id="voiceOutput">
+                                    <h3>Recognition Results</h3>
+                                    <div class="output-content" id="voiceResults">
+                                        No commands processed yet.
+                                    </div>
+                                </div>
+                                
+                                <div class="voice-history">
+                                    <h3>Command History</h3>
+                                    <div class="history-list" id="voiceHistory">
+                                        <!-- Voice command history will be populated here -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Analytics Tab -->
+                        <div class="tab-content" id="analytics">
+                            <h2 class="section-title">Analytics Dashboard</h2>
+                            <div class="analytics-container">
+                                <div class="analytics-overview" id="analyticsOverview">
+                                    <div class="metric-cards">
+                                        <div class="metric-card">
+                                            <h3>Total Prints</h3>
+                                            <div class="metric-value" id="totalPrints">--</div>
+                                        </div>
+                                        <div class="metric-card">
+                                            <h3>Success Rate</h3>
+                                            <div class="metric-value" id="successRate">--</div>
+                                        </div>
+                                        <div class="metric-card">
+                                            <h3>Active Jobs</h3>
+                                            <div class="metric-value" id="activeJobs">--</div>
+                                        </div>
+                                        <div class="metric-card">
+                                            <h3>System Health</h3>
+                                            <div class="metric-value" id="systemHealth">--</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="analytics-charts">
+                                    <div class="chart-container">
+                                        <h3>Print Activity</h3>
+                                        <canvas id="activityChart" width="400" height="200"></canvas>
+                                    </div>
+                                    <div class="chart-container">
+                                        <h3>Performance Metrics</h3>
+                                        <canvas id="performanceChart" width="400" height="200"></canvas>
+                                    </div>
+                                </div>
+                                
+                                <div class="analytics-controls">
+                                    <button class="btn btn-primary" id="refreshAnalyticsBtn">
+                                        <span class="btn-icon">🔄</span>
+                                        Refresh Data
+                                    </button>
+                                    <select id="timeRangeSelect" class="form-input">
+                                        <option value="24h">Last 24 Hours</option>
+                                        <option value="7d">Last 7 Days</option>
+                                        <option value="30d">Last 30 Days</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="analytics-details" id="analyticsDetails">
+                                    <!-- Detailed analytics will be populated here -->
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Templates Tab -->
+                        <div class="tab-content" id="templates">
+                            <h2 class="section-title">Template Library</h2>
+                            <div class="templates-container">
+                                <div class="template-filters">
+                                    <div class="filter-group">
+                                        <label for="categoryFilter" class="form-label">Category:</label>
+                                        <select id="categoryFilter" class="form-input">
+                                            <option value="">All Categories</option>
+                                            <option value="mechanical">Mechanical</option>
+                                            <option value="decorative">Decorative</option>
+                                            <option value="functional">Functional</option>
+                                            <option value="toys_games">Toys & Games</option>
+                                            <option value="tools">Tools</option>
+                                            <option value="household">Household</option>
+                                            <option value="jewelry">Jewelry</option>
+                                            <option value="educational">Educational</option>
+                                            <option value="prototyping">Prototyping</option>
+                                            <option value="art">Art</option>
+                                        </select>
+                                    </div>
+                                    <div class="filter-group">
+                                        <label for="difficultyFilter" class="form-label">Difficulty:</label>
+                                        <select id="difficultyFilter" class="form-input">
+                                            <option value="">All Levels</option>
+                                            <option value="beginner">Beginner</option>
+                                            <option value="intermediate">Intermediate</option>
+                                            <option value="advanced">Advanced</option>
+                                            <option value="expert">Expert</option>
+                                        </select>
+                                    </div>
+                                    <div class="filter-group">
+                                        <input type="text" id="searchFilter" class="form-input" 
+                                               placeholder="Search templates..." />
+                                        <button class="btn btn-primary" id="searchTemplatesBtn">Search</button>
+                                    </div>
+                                </div>
+                                
+                                <div class="template-grid" id="templateGrid">
+                                    <!-- Template cards will be populated here -->
+                                </div>
+                                
+                                <div class="template-details" id="templateDetails" style="display: none;">
+                                    <!-- Template details and customization will be shown here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </section>
 
@@ -100,24 +398,49 @@
     <div id="notificationContainer" class="notification-container"></div>
 
     <!-- JavaScript -->
-    <script src="js/api.js"></script>
-    <script src="js/websocket.js"></script>
-    <script src="js/ui.js"></script>
-    <script src="js/app.js"></script>
+    <!-- Three.js for 3D Viewer -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/PLYLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    
+    <!-- Chart.js for Analytics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    
+    <!-- Application Scripts -->
+    <script src="/web/js/api.js"></script>
+    <script src="/web/js/websocket.js"></script>
+    <!-- Enhanced JavaScript -->
+    <script src="/web/js/websocket-client.js"></script>
+    <script src="/web/js/ui.js"></script>
+    <script src="/web/js/app.js"></script>
+    <script src="/web/js/advanced.js"></script>
+    <script src="/web/js/app-enhanced.js"></script>
+    <script src="/web/js/3d-viewer.js"></script>
+    <script src="/web/js/viewer-manager.js"></script>
+    <script src="/web/js/image-to-3d.js"></script>
+    <script src="/web/js/voice-control.js"></script>
+    <script src="/web/js/analytics-dashboard.js"></script>
+    <script src="/web/js/template-library.js"></script>
+    <script src="/web/js/printer-management.js"></script>
     
     <!-- Service Worker Registration -->
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js')
+                navigator.serviceWorker.register('/web/sw.js')
                     .then((registration) => {
-                        console.log('SW registered: ', registration);
+                        console.log('✅ Service Worker registered:', registration.scope);
                     })
                     .catch((registrationError) => {
-                        console.log('SW registration failed: ', registrationError);
+                        console.error('❌ Service Worker registration failed:', registrationError);
                     });
             });
         }
     </script>
+    
+    <!-- Notification Container -->
+    <div id="notifications" class="notification-area"></div>
 </body>
 </html>

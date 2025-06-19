@@ -1,0 +1,527 @@
+{
+  "meta": {
+    "start_time": "2025-06-18T17:16:35.597108",
+    "end_time": "2025-06-18T17:16:46.280615",
+    "total_time_seconds": 10.683507,
+    "anzahl_begriffe": 50,
+    "erfolgsrate_prozent": 0.0
+  },
+  "statistics": {
+    "erfolgreich": 0,
+    "fehlgeschlagen": 50,
+    "kategorien": {
+      "technik": {
+        "success": 0,
+        "total": 4
+      },
+      "spielzeug": {
+        "success": 0,
+        "total": 3
+      },
+      "schmuck": {
+        "success": 0,
+        "total": 5
+      },
+      "haushalt": {
+        "success": 0,
+        "total": 7
+      },
+      "garten": {
+        "success": 0,
+        "total": 4
+      },
+      "werkzeuge": {
+        "success": 0,
+        "total": 2
+      },
+      "komplexe_objekte": {
+        "success": 0,
+        "total": 9
+      },
+      "elektronik": {
+        "success": 0,
+        "total": 3
+      },
+      "büro": {
+        "success": 0,
+        "total": 5
+      },
+      "medizin": {
+        "success": 0,
+        "total": 2
+      },
+      "einfache_formen": {
+        "success": 0,
+        "total": 3
+      },
+      "sport": {
+        "success": 0,
+        "total": 5
+      },
+      "transport": {
+        "success": 0,
+        "total": 1
+      },
+      "möbel": {
+        "success": 0,
+        "total": 1
+      },
+      "küche": {
+        "success": 0,
+        "total": 3
+      }
+    }
+  },
+  "results": {
+    "Hebel": {
+      "begriff": "Hebel",
+      "success": false,
+      "job_id": null,
+      "processing_time": 0.2137289047241211,
+      "progress": 0,
+      "output_files": null,
+      "error": "HTTP 429: {\"error\":\"rate_limit_exceeded\",\"message\":\"Too many requests. Please try again later.\",\"violations\":[\"endpoint\"],\"retry_after\":null}"
+    },
+    "Rutsche": {
+      "begriff": "Rutsche",
+      "success": false,
+      "job_id": null,
+      "processing_time": 0.2129809856414795,
+      "progress": 0,
+      "output_files": null,
+      "error": "HTTP 429: {\"error\":\"rate_limit_exceeded\",\"message\":\"Too many requests. Please try again later.\",\"violations\":[\"endpoint\"],\"retry_after\":null}"
+    },
+    "Manschettenknopf": {
+      "begriff": "Manschettenknopf",
+      "success": false,
+      "job_id": null,
+      "processing_time": 0.2124943733215332,
+      "progress": 0,
+      "output_files": null,
+      "error": "HTTP 429: {\"error\":\"rate_limit_exceeded\",\"message\":\"Too many requests. Please try again later.\",\"violations\":[\"endpoint\"],\"retry_after\":null}"
+    },
+    "Messer": {
+      "begriff": "Messer",
+      "success": false,
+      "job_id": null,
+      "processing_time": 0.21236324310302734,
+      "progress": 0,
+      "output_files": null,
+      "error": "HTTP 429: {\"error\":\"rate_limit_exceeded\",\"message\":\"Too many requests. Please try again later.\",\"violations\":[\"endpoint\"],\"retry_after\":null}"
+    },
+    "Wasserwaage": {
+      "begriff": "Wasserwaage",
+      "success": false,
+      "job_id": null,
+      "processing_time": 0.21263742446899414,
+      "progress": 0,
+      "output_files": null,
+      "error": "HTTP 429: {\"error\":\"rate_limit_exceeded\",\"message\":\"Too many requests. Please try again later.\",\"violations\":[\"endpoint\"],\"retry_after\":null}"
+    },
+    "Vogeltränke": {
+      "begriff": "Vogeltränke",
+      "success": false,
+      "job_id": null,
+      "processing_time": 0.21326637268066406,
+      "progress": 0,
+      "output_files": null,
+      "error": "HTTP 429: {\"error\":\"rate_limit_exceeded\",\"message\":\"Too many requests. Please try again later.\",\"violations\":[\"endpoint\"],\"retry_after\":null}"
+    },
+    "Transformator": {
+      "begriff": "Transformator",
+      "success": false,
+      "job_id": null,
+      "processing_time": 0.21282720565795898,
+      "progress": 0,
+      "output_files": null,
+      "error": "HTTP 429: {\"error\":\"rate_limit_exceeded\",\"message\":\"Too many requests. Please try again later.\",\"violations\":[\"endpoint\"],\"retry_after\":null}"
+    },
+    "Ohrring": {
+      "begriff": "Ohrring",
+      "success": false,
+      "job_id": null,
+      "processing_time": 0.2127242088317871,
+      "progress": 0,
+      "output_files": null,
+      "error": "HTTP 429: {\"error\":\"rate_limit_exceeded\",\"message\":\"Too many requests. Please try again later.\",\"violations\":[\"endpoint\"],\"retry_after\":null}"
+    },
+    "Kabel": {
+      "begriff": "Kabel",
+      "success": false,
+      "job_id": null,
+      "processing_time": 0.21249032020568848,
+      "progress": 0,
+      "output_files": null,
+      "error": "HTTP 429: {\"error\":\"rate_limit_exceeded\",\"message\":\"Too many requests. Please try again later.\",\"violations\":[\"endpoint\"],\"retry_after\":null}"
+    },
+    "Riemenscheibe": {
+      "begriff": "Riemenscheibe",
+      "success": false,
+      "job_id": null,
+      "processing_time": 0.21240735054016113,
+      "progress": 0,
+      "output_files": null,
+      "error": "HTTP 429: {\"error\":\"rate_limit_exceeded\",\"message\":\"Too many requests. Please try again later.\",\"violations\":[\"endpoint\"],\"retry_after\":null}"
+    },
+    "Schalter": {
+      "begriff": "Schalter",
+      "success": false,
+      "job_id": null,
+      "processing_time": 0.21328425407409668,
+      "progress": 0,
+      "output_files": null,
+      "error": "HTTP 429: {\"error\":\"rate_limit_exceeded\",\"message\":\"Too many requests. Please try again later.\",\"violations\":[\"endpoint\"],\"retry_after\":null}"
+    },
+    "Ablage": {
+      "begriff": "Ablage",
+      "success": false,
+      "job_id": null,
+      "processing_time": 0.21373701095581055,
+      "progress": 0,
+      "output_files": null,
+      "error": "HTTP 429: {\"error\":\"rate_limit_exceeded\",\"message\":\"Too many requests. Please try again later.\",\"violations\":[\"endpoint\"],\"retry_after\":null}"
+    },
+    "Zahnersatz": {
+      "begriff": "Zahnersatz",
+      "success": false,
+      "job_id": null,
+      "processing_time": 0.2126607894897461,
+      "progress": 0,
+      "output_files": null,
+      "error": "HTTP 429: {\"error\":\"rate_limit_exceeded\",\"message\":\"Too many requests. Please try again later.\",\"violations\":[\"endpoint\"],\"retry_after\":null}"
+    },
+    "Haus": {
+      "begriff": "Haus",
+      "success": false,
+      "job_id": null,
+      "processing_time": 0.2136082649230957,
+      "progress": 0,
+      "output_files": null,
+      "error": "HTTP 429: {\"error\":\"rate_limit_exceeded\",\"message\":\"Too many requests. Please try again later.\",\"violations\":[\"endpoint\"],\"retry_after\":null}"
+    },
+    "Kamera": {
+      "begriff": "Kamera",
+      "success": false,
+      "job_id": null,
+      "processing_time": 0.21319222450256348,
+      "progress": 0,
+      "output_files": null,
+      "error": "HTTP 429: {\"error\":\"rate_limit_exceeded\",\"message\":\"Too many requests. Please try again later.\",\"violations\":[\"endpoint\"],\"retry_after\":null}"
+    },
+    "Generator": {
+      "begriff": "Generator",
+      "success": false,
+      "job_id": null,
+      "processing_time": 0.2133333683013916,
+      "progress": 0,
+      "output_files": null,
+      "error": "HTTP 429: {\"error\":\"rate_limit_exceeded\",\"message\":\"Too many requests. Please try again later.\",\"violations\":[\"endpoint\"],\"retry_after\":null}"
+    },
+    "Ring": {
+      "begriff": "Ring",
+      "success": false,
+      "job_id": null,
+      "processing_time": 0.2126455307006836,
+      "progress": 0,
+      "output_files": null,
+      "error": "HTTP 429: {\"error\":\"rate_limit_exceeded\",\"message\":\"Too many requests. Please try again later.\",\"violations\":[\"endpoint\"],\"retry_after\":null}"
+    },
+    "Stoßdämpfer": {
+      "begriff": "Stoßdämpfer",
+      "success": false,
+      "job_id": null,
+      "processing_time": 0.21364092826843262,
+      "progress": 0,
+      "output_files": null,
+      "error": "HTTP 429: {\"error\":\"rate_limit_exceeded\",\"message\":\"Too many requests. Please try again later.\",\"violations\":[\"endpoint\"],\"retry_after\":null}"
+    },
+    "Flasche": {
+      "begriff": "Flasche",
+      "success": false,
+      "job_id": null,
+      "processing_time": 0.2135932445526123,
+      "progress": 0,
+      "output_files": null,
+      "error": "HTTP 429: {\"error\":\"rate_limit_exceeded\",\"message\":\"Too many requests. Please try again later.\",\"violations\":[\"endpoint\"],\"retry_after\":null}"
+    },
+    "Garderobe": {
+      "begriff": "Garderobe",
+      "success": false,
+      "job_id": null,
+      "processing_time": 0.21313905715942383,
+      "progress": 0,
+      "output_files": null,
+      "error": "HTTP 429: {\"error\":\"rate_limit_exceeded\",\"message\":\"Too many requests. Please try again later.\",\"violations\":[\"endpoint\"],\"retry_after\":null}"
+    },
+    "Anspitzer": {
+      "begriff": "Anspitzer",
+      "success": false,
+      "job_id": null,
+      "processing_time": 0.2136249542236328,
+      "progress": 0,
+      "output_files": null,
+      "error": "HTTP 429: {\"error\":\"rate_limit_exceeded\",\"message\":\"Too many requests. Please try again later.\",\"violations\":[\"endpoint\"],\"retry_after\":null}"
+    },
+    "Briefklemme": {
+      "begriff": "Briefklemme",
+      "success": false,
+      "job_id": null,
+      "processing_time": 0.21293067932128906,
+      "progress": 0,
+      "output_files": null,
+      "error": "HTTP 429: {\"error\":\"rate_limit_exceeded\",\"message\":\"Too many requests. Please try again later.\",\"violations\":[\"endpoint\"],\"retry_after\":null}"
+    },
+    "Stift": {
+      "begriff": "Stift",
+      "success": false,
+      "job_id": null,
+      "processing_time": 0.21732711791992188,
+      "progress": 0,
+      "output_files": null,
+      "error": "HTTP 429: {\"error\":\"rate_limit_exceeded\",\"message\":\"Too many requests. Please try again later.\",\"violations\":[\"endpoint\"],\"retry_after\":null}"
+    },
+    "Seil": {
+      "begriff": "Seil",
+      "success": false,
+      "job_id": null,
+      "processing_time": 0.21974778175354004,
+      "progress": 0,
+      "output_files": null,
+      "error": "HTTP 429: {\"error\":\"rate_limit_exceeded\",\"message\":\"Too many requests. Please try again later.\",\"violations\":[\"endpoint\"],\"retry_after\":null}"
+    },
+    "Ruder": {
+      "begriff": "Ruder",
+      "success": false,
+      "job_id": null,
+      "processing_time": 0.21235418319702148,
+      "progress": 0,
+      "output_files": null,
+      "error": "HTTP 429: {\"error\":\"rate_limit_exceeded\",\"message\":\"Too many requests. Please try again later.\",\"violations\":[\"endpoint\"],\"retry_after\":null}"
+    },
+    "Untersetzer": {
+      "begriff": "Untersetzer",
+      "success": false,
+      "job_id": null,
+      "processing_time": 0.21421265602111816,
+      "progress": 0,
+      "output_files": null,
+      "error": "HTTP 429: {\"error\":\"rate_limit_exceeded\",\"message\":\"Too many requests. Please try again later.\",\"violations\":[\"endpoint\"],\"retry_after\":null}"
+    },
+    "Getriebe": {
+      "begriff": "Getriebe",
+      "success": false,
+      "job_id": null,
+      "processing_time": 0.21245169639587402,
+      "progress": 0,
+      "output_files": null,
+      "error": "HTTP 429: {\"error\":\"rate_limit_exceeded\",\"message\":\"Too many requests. Please try again later.\",\"violations\":[\"endpoint\"],\"retry_after\":null}"
+    },
+    "Barren": {
+      "begriff": "Barren",
+      "success": false,
+      "job_id": null,
+      "processing_time": 0.212738037109375,
+      "progress": 0,
+      "output_files": null,
+      "error": "HTTP 429: {\"error\":\"rate_limit_exceeded\",\"message\":\"Too many requests. Please try again later.\",\"violations\":[\"endpoint\"],\"retry_after\":null}"
+    },
+    "Pumpe": {
+      "begriff": "Pumpe",
+      "success": false,
+      "job_id": null,
+      "processing_time": 0.2133326530456543,
+      "progress": 0,
+      "output_files": null,
+      "error": "HTTP 429: {\"error\":\"rate_limit_exceeded\",\"message\":\"Too many requests. Please try again later.\",\"violations\":[\"endpoint\"],\"retry_after\":null}"
+    },
+    "Hacke": {
+      "begriff": "Hacke",
+      "success": false,
+      "job_id": null,
+      "processing_time": 0.21427130699157715,
+      "progress": 0,
+      "output_files": null,
+      "error": "HTTP 429: {\"error\":\"rate_limit_exceeded\",\"message\":\"Too many requests. Please try again later.\",\"violations\":[\"endpoint\"],\"retry_after\":null}"
+    },
+    "Racket": {
+      "begriff": "Racket",
+      "success": false,
+      "job_id": null,
+      "processing_time": 0.21268248558044434,
+      "progress": 0,
+      "output_files": null,
+      "error": "HTTP 429: {\"error\":\"rate_limit_exceeded\",\"message\":\"Too many requests. Please try again later.\",\"violations\":[\"endpoint\"],\"retry_after\":null}"
+    },
+    "Flaschenöffner": {
+      "begriff": "Flaschenöffner",
+      "success": false,
+      "job_id": null,
+      "processing_time": 0.21444940567016602,
+      "progress": 0,
+      "output_files": null,
+      "error": "HTTP 429: {\"error\":\"rate_limit_exceeded\",\"message\":\"Too many requests. Please try again later.\",\"violations\":[\"endpoint\"],\"retry_after\":null}"
+    },
+    "Salatschüssel": {
+      "begriff": "Salatschüssel",
+      "success": false,
+      "job_id": null,
+      "processing_time": 0.2144911289215088,
+      "progress": 0,
+      "output_files": null,
+      "error": "HTTP 429: {\"error\":\"rate_limit_exceeded\",\"message\":\"Too many requests. Please try again later.\",\"violations\":[\"endpoint\"],\"retry_after\":null}"
+    },
+    "Balken": {
+      "begriff": "Balken",
+      "success": false,
+      "job_id": null,
+      "processing_time": 0.2125253677368164,
+      "progress": 0,
+      "output_files": null,
+      "error": "HTTP 429: {\"error\":\"rate_limit_exceeded\",\"message\":\"Too many requests. Please try again later.\",\"violations\":[\"endpoint\"],\"retry_after\":null}"
+    },
+    "Drohne": {
+      "begriff": "Drohne",
+      "success": false,
+      "job_id": null,
+      "processing_time": 0.21599340438842773,
+      "progress": 0,
+      "output_files": null,
+      "error": "HTTP 429: {\"error\":\"rate_limit_exceeded\",\"message\":\"Too many requests. Please try again later.\",\"violations\":[\"endpoint\"],\"retry_after\":null}"
+    },
+    "Scheibe": {
+      "begriff": "Scheibe",
+      "success": false,
+      "job_id": null,
+      "processing_time": 0.21383142471313477,
+      "progress": 0,
+      "output_files": null,
+      "error": "HTTP 429: {\"error\":\"rate_limit_exceeded\",\"message\":\"Too many requests. Please try again later.\",\"violations\":[\"endpoint\"],\"retry_after\":null}"
+    },
+    "Schlauch": {
+      "begriff": "Schlauch",
+      "success": false,
+      "job_id": null,
+      "processing_time": 0.2124466896057129,
+      "progress": 0,
+      "output_files": null,
+      "error": "HTTP 429: {\"error\":\"rate_limit_exceeded\",\"message\":\"Too many requests. Please try again later.\",\"violations\":[\"endpoint\"],\"retry_after\":null}"
+    },
+    "Uhr": {
+      "begriff": "Uhr",
+      "success": false,
+      "job_id": null,
+      "processing_time": 0.21281671524047852,
+      "progress": 0,
+      "output_files": null,
+      "error": "HTTP 429: {\"error\":\"rate_limit_exceeded\",\"message\":\"Too many requests. Please try again later.\",\"violations\":[\"endpoint\"],\"retry_after\":null}"
+    },
+    "Roboter": {
+      "begriff": "Roboter",
+      "success": false,
+      "job_id": null,
+      "processing_time": 0.21236705780029297,
+      "progress": 0,
+      "output_files": null,
+      "error": "HTTP 429: {\"error\":\"rate_limit_exceeded\",\"message\":\"Too many requests. Please try again later.\",\"violations\":[\"endpoint\"],\"retry_after\":null}"
+    },
+    "Textmarker": {
+      "begriff": "Textmarker",
+      "success": false,
+      "job_id": null,
+      "processing_time": 0.21236658096313477,
+      "progress": 0,
+      "output_files": null,
+      "error": "HTTP 429: {\"error\":\"rate_limit_exceeded\",\"message\":\"Too many requests. Please try again later.\",\"violations\":[\"endpoint\"],\"retry_after\":null}"
+    },
+    "Kerzenhalter": {
+      "begriff": "Kerzenhalter",
+      "success": false,
+      "job_id": null,
+      "processing_time": 0.21235156059265137,
+      "progress": 0,
+      "output_files": null,
+      "error": "HTTP 429: {\"error\":\"rate_limit_exceeded\",\"message\":\"Too many requests. Please try again later.\",\"violations\":[\"endpoint\"],\"retry_after\":null}"
+    },
+    "Stethoskop": {
+      "begriff": "Stethoskop",
+      "success": false,
+      "job_id": null,
+      "processing_time": 0.21307587623596191,
+      "progress": 0,
+      "output_files": null,
+      "error": "HTTP 429: {\"error\":\"rate_limit_exceeded\",\"message\":\"Too many requests. Please try again later.\",\"violations\":[\"endpoint\"],\"retry_after\":null}"
+    },
+    "Zuckerdose": {
+      "begriff": "Zuckerdose",
+      "success": false,
+      "job_id": null,
+      "processing_time": 0.2131798267364502,
+      "progress": 0,
+      "output_files": null,
+      "error": "HTTP 429: {\"error\":\"rate_limit_exceeded\",\"message\":\"Too many requests. Please try again later.\",\"violations\":[\"endpoint\"],\"retry_after\":null}"
+    },
+    "Haken": {
+      "begriff": "Haken",
+      "success": false,
+      "job_id": null,
+      "processing_time": 0.2127685546875,
+      "progress": 0,
+      "output_files": null,
+      "error": "HTTP 429: {\"error\":\"rate_limit_exceeded\",\"message\":\"Too many requests. Please try again later.\",\"violations\":[\"endpoint\"],\"retry_after\":null}"
+    },
+    "Presse": {
+      "begriff": "Presse",
+      "success": false,
+      "job_id": null,
+      "processing_time": 0.21334123611450195,
+      "progress": 0,
+      "output_files": null,
+      "error": "HTTP 429: {\"error\":\"rate_limit_exceeded\",\"message\":\"Too many requests. Please try again later.\",\"violations\":[\"endpoint\"],\"retry_after\":null}"
+    },
+    "Unterlegscheibe": {
+      "begriff": "Unterlegscheibe",
+      "success": false,
+      "job_id": null,
+      "processing_time": 0.2125093936920166,
+      "progress": 0,
+      "output_files": null,
+      "error": "HTTP 429: {\"error\":\"rate_limit_exceeded\",\"message\":\"Too many requests. Please try again later.\",\"violations\":[\"endpoint\"],\"retry_after\":null}"
+    },
+    "Satellit": {
+      "begriff": "Satellit",
+      "success": false,
+      "job_id": null,
+      "processing_time": 0.21263885498046875,
+      "progress": 0,
+      "output_files": null,
+      "error": "HTTP 429: {\"error\":\"rate_limit_exceeded\",\"message\":\"Too many requests. Please try again later.\",\"violations\":[\"endpoint\"],\"retry_after\":null}"
+    },
+    "Medaillon": {
+      "begriff": "Medaillon",
+      "success": false,
+      "job_id": null,
+      "processing_time": 0.21330642700195312,
+      "progress": 0,
+      "output_files": null,
+      "error": "HTTP 429: {\"error\":\"rate_limit_exceeded\",\"message\":\"Too many requests. Please try again later.\",\"violations\":[\"endpoint\"],\"retry_after\":null}"
+    },
+    "Lineal": {
+      "begriff": "Lineal",
+      "success": false,
+      "job_id": null,
+      "processing_time": 0.21384358406066895,
+      "progress": 0,
+      "output_files": null,
+      "error": "HTTP 429: {\"error\":\"rate_limit_exceeded\",\"message\":\"Too many requests. Please try again later.\",\"violations\":[\"endpoint\"],\"retry_after\":null}"
+    },
+    "Roboterarm": {
+      "begriff": "Roboterarm",
+      "success": false,
+      "job_id": null,
+      "processing_time": 0.21356630325317383,
+      "progress": 0,
+      "output_files": null,
+      "error": "HTTP 429: {\"error\":\"rate_limit_exceeded\",\"message\":\"Too many requests. Please try again later.\",\"violations\":[\"endpoint\"],\"retry_after\":null}"
+    }
+  }
+}

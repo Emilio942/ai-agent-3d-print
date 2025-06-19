@@ -119,7 +119,7 @@ class APITestSuite:
             print_request = {
                 "user_request": TEST_CONFIG["test_request"],
                 "user_id": "test_user",
-                "printer_profile": "ender3_pla",
+                "printer_profile": "ender3_pla_standard",
                 "quality_level": "standard",
                 "metadata": {"test": True}
             }

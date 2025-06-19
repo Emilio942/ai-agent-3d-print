@@ -1,0 +1,62 @@
+[
+  {
+    "id": "d169841b-2b76-4003-a0ad-6e3e1b6b39a4",
+    "user_request": "Print converted 3D model: example_image.jpg",
+    "model_path": "/data/converted_models/demo_001.stl",
+    "priority": "normal",
+    "source": "image_to_3d_conversion",
+    "model_id": "demo_001",
+    "status": "created",
+    "created_at": "2025-06-16T17:08:24.997197"
+  },
+  {
+    "id": "c37b3fdd-32e1-4952-97de-10882c8dd2a2",
+    "user_request": "Print converted 3D model: example_image.jpg",
+    "model_path": "/data/converted_models/demo_001.stl",
+    "priority": "normal",
+    "source": "image_to_3d_conversion",
+    "model_id": "demo_001",
+    "status": "created",
+    "created_at": "2025-06-16T17:15:24.759211"
+  },
+  {
+    "id": "f0b56649-363f-4613-a2c0-b1df8be5c409",
+    "user_request": "Print converted 3D model: example_image.jpg",
+    "model_path": "/data/converted_models/demo_001.stl",
+    "priority": "normal",
+    "source": "image_to_3d_conversion",
+    "model_id": "demo_001",
+    "status": "created",
+    "created_at": "2025-06-16T17:15:58.080234"
+  },
+  {
+    "id": "414f1dbe-8624-4cc0-8f4d-ab713604e96c",
+    "user_request": "Print converted 3D model: test_object.png",
+    "model_path": "/data/converted_models/demo_002.obj",
+    "priority": "normal",
+    "source": "image_to_3d_conversion",
+    "model_id": "demo_002",
+    "status": "created",
+    "created_at": "2025-06-18T16:39:55.415819"
+  },
+  {
+    "id": "69a7b58b-4ed8-4338-b90d-7018afaee4ec",
+    "user_request": "Print converted 3D model: test_object.png",
+    "model_path": "/data/converted_models/demo_002.obj",
+    "priority": "normal",
+    "source": "image_to_3d_conversion",
+    "model_id": "demo_002",
+    "status": "created",
+    "created_at": "2025-06-18T16:40:05.230206"
+  },
+  {
+    "id": "484aabc4-1e69-49a0-aca2-fb0be5f4d61d",
+    "user_request": "Print converted 3D model: test_object.png",
+    "model_path": "/data/converted_models/demo_002.obj",
+    "priority": "normal",
+    "source": "image_to_3d_conversion",
+    "model_id": "demo_002",
+    "status": "created",
+    "created_at": "2025-06-18T17:33:30.225991"
+  }
+]

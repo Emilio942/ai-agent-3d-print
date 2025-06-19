@@ -407,153 +407,36 @@ class SlicerAgent(BaseAgent):
         
         slicer_path = self.slicer_paths.get(self.slicer_engine)
         if not slicer_path:
+            self.logger.warning(f"No executable path found for slicer engine: {self.slicer_engine}")
             return False
         
-        return shutil.which(slicer_path) is not None
-    
-    def _build_prusaslicer_command(self, settings: Dict[str, Any]) -> List[str]:
-        """Build PrusaSlicer CLI command."""
-        if self.mock_mode:
-            return ["echo", "mock_prusaslicer_command"]
+        # Check if the executable exists and is accessible
+        if not os.path.exists(slicer_path):
+            self.logger.warning(f"Slicer executable not found at path: {slicer_path}")
+            return False
         
-        cmd = ["prusa-slicer"]
-        cmd.extend(["--export-gcode"])
-        cmd.extend(["--load", settings.get("profile", "default")])
-        cmd.extend([settings.get("input_file")])
-        cmd.extend(["--output", settings.get("output_file")])
+        # Additional check using shutil.which for PATH-based executables
+        if not shutil.which(slicer_path):
+            self.logger.warning(f"Slicer executable not accessible: {slicer_path}")
+            return False
         
-        return cmd
-    
-    def _get_material_settings(self, material: str) -> Dict[str, Any]:
-        """Get material-specific settings."""
-        material_settings = {
-            "PLA": {
-                "hotend_temperature": 210,
-                "bed_temperature": 60,
-                "retraction_distance": 0.8,
-                "retraction_speed": 35
-            },
-            "PETG": {
-                "hotend_temperature": 240,
-                "bed_temperature": 80,
-                "retraction_distance": 1.0,
-                "retraction_speed": 25
-            },
-            "ABS": {
-                "hotend_temperature": 250,
-                "bed_temperature": 100,
-                "retraction_distance": 0.8,
-                "retraction_speed": 40
-            },
-            "TPU": {
-                "hotend_temperature": 220,
-                "bed_temperature": 50,
-                "retraction_distance": 0.5,
-                "retraction_speed": 15
-            }
-        }
-        
-        return material_settings.get(material, material_settings["PLA"])
-    
-    def _get_printer_settings(self, printer: str) -> Dict[str, Any]:
-        """Get printer-specific settings."""
-        printer_settings = {
-            "ender3": {
-                "build_volume": [220, 220, 250],
-                "nozzle_diameter": 0.4,
-                "max_print_speed": 80,
-                "z_offset": 0.0
-            },
-            "prusa_mk3s": {
-                "build_volume": [250, 210, 210],
-                "nozzle_diameter": 0.4,
-                "max_print_speed": 100,
-                "z_offset": 0.0
-            },
-            "cr10": {
-                "build_volume": [300, 300, 400],
-                "nozzle_diameter": 0.4,
-                "max_print_speed": 60,
-                "z_offset": 0.0
-            }
-        }
-        
-        return printer_settings.get(printer, printer_settings["ender3"])
-    
-    def _get_quality_settings(self, quality: str) -> Dict[str, Any]:
-        """Get quality-specific settings."""
-        quality_settings = {
-            "draft": {
-                "layer_height": 0.3,
-                "infill_percentage": 15,
-                "perimeters": 2,
-                "speed_multiplier": 1.5
-            },
-            "standard": {
-                "layer_height": 0.2,
-                "infill_percentage": 20,
-                "perimeters": 3,
-                "speed_multiplier": 1.0
-            },
-            "fine": {
-                "layer_height": 0.15,
-                "infill_percentage": 25,
-                "perimeters": 3,
-                "speed_multiplier": 0.8
-            },
-            "ultra": {
-                "layer_height": 0.1,
-                "infill_percentage": 30,
-                "perimeters": 4,
-                "speed_multiplier": 0.6
-            }
-        }
-        
-        return quality_settings.get(quality, quality_settings["standard"])
-    
-    def _estimate_print_time(self, gcode_metrics: Dict[str, Any]) -> float:
-        """Estimate print time from G-code metrics."""
-        layer_count = gcode_metrics.get("layer_count", 0)
-        total_movements = gcode_metrics.get("total_movements", 0)
-        estimated_filament = gcode_metrics.get("estimated_filament", 0)
-        
-        # Simple estimation based on layers and movements
-        base_time = layer_count * 2  # 2 minutes per layer base
-        movement_time = total_movements * 0.05  # 0.05 minutes per movement
-        material_time = estimated_filament * 0.5  # 0.5 minutes per gram
-        
-        return base_time + movement_time + material_time
-    
-    def _estimate_material_usage(self, gcode_metrics: Dict[str, Any]) -> float:
-        """Estimate material usage from G-code metrics."""
-        layer_count = gcode_metrics.get("layer_count", 0)
-        build_volume = gcode_metrics.get("build_volume", [220, 220, 250])
-        
-        # Simple estimation based on layer count and build volume
-        volume_factor = (build_volume[0] * build_volume[1] * build_volume[2]) / 1000000  # cm³
-        material_usage = layer_count * volume_factor * 0.05  # 0.05g per cm³ per layer
-        
-        return max(1.0, material_usage)  # Minimum 1g
-    
-    def _postprocess_gcode(self, gcode_content: str) -> str:
-        """Post-process G-code content."""
-        lines = gcode_content.strip().split('\n')
-        processed_lines = []
-        
-        for line in lines:
-            line = line.strip()
-            if not line or line.startswith(';'):
-                processed_lines.append(line)
-                continue
-            
-            # Add basic post-processing
-            if line.startswith('G1') and 'E' in line:
-                # Add retraction optimization marker
-                processed_lines.append(line + " ; optimized")
+        # Try to run the slicer with --help to verify it's working
+        try:
+            result = subprocess.run(
+                [slicer_path, '--help'],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            if result.returncode == 0:
+                self.logger.info(f"Slicer {self.slicer_engine} is available and working at: {slicer_path}")
+                return True
             else:
-                processed_lines.append(line)
-        
-        return '\n'.join(processed_lines)
+                self.logger.warning(f"Slicer {self.slicer_engine} failed help test: {result.stderr}")
+                return False
+        except (subprocess.TimeoutExpired, subprocess.SubprocessError, FileNotFoundError) as e:
+            self.logger.warning(f"Slicer {self.slicer_engine} verification failed: {e}")
+            return False
     
     async def _mock_slice_operation(self, slicer_input: SlicerAgentInput, effective_settings: Dict[str, Any]) -> Dict[str, Any]:
         """Perform mock slicing operation for testing."""
@@ -574,38 +457,32 @@ class SlicerAgent(BaseAgent):
         estimated_print_time = layer_count * 2  # 2 minutes per layer
         material_usage = layer_count * 0.5  # 0.5g per layer
         
-        # Generate mock G-code content
-        gcode_content = f"""; Generated by Mock SlicerAgent
-; Model: {slicer_input.model_file_path}
-; Profile: {slicer_input.printer_profile}
-; Quality: {quality_preset}
-; Layer Height: {layer_height}mm
-
-; Start G-code
-G21 ; set units to millimeters
-G90 ; use absolute coordinates
-M104 S200 ; set hotend temperature
-M140 S60 ; set bed temperature
-G28 ; home all axes
-
-"""
+        # Generate mock G-code content with proper string concatenation
+        gcode_content = f"; Generated by Mock SlicerAgent\n"
+        gcode_content += f"; Model: {slicer_input.model_file_path}\n"
+        gcode_content += f"; Profile: {slicer_input.printer_profile}\n"
+        gcode_content += f"; Quality: {quality_preset}\n"
+        gcode_content += f"; Layer Height: {layer_height}mm\n\n"
+        gcode_content += "; Start G-code\n"
+        gcode_content += "G21 ; set units to millimeters\n"
+        gcode_content += "G90 ; use absolute coordinates\n"
+        gcode_content += "M104 S200 ; set hotend temperature\n"
+        gcode_content += "M140 S60 ; set bed temperature\n"
+        gcode_content += "G28 ; home all axes\n\n"
         
         # Add layer content
         for layer in range(layer_count):
             z_height = layer * layer_height
-            gcode_content += f"""; Layer {layer + 1}
-G1 Z{z_height:.2f} F3000
-G1 X10 Y10 E{layer * 0.1:.2f} F1500
-G1 X50 Y50 E{layer * 0.2:.2f} F1500
-
-"""
+            gcode_content += f"; Layer {layer + 1}\n"
+            gcode_content += f"G1 Z{z_height:.2f} F3000\n"
+            gcode_content += f"G1 X10 Y10 E{layer * 0.1:.2f} F1500\n"
+            gcode_content += f"G1 X50 Y50 E{layer * 0.2:.2f} F1500\n\n"
         
         # Add end G-code
-        gcode_content += """; End G-code
-M104 S0 ; turn off hotend
-M140 S0 ; turn off bed
-G28 X0 ; home X axis
-"""
+        gcode_content += "; End G-code\n"
+        gcode_content += "M104 S0 ; turn off hotend\n"
+        gcode_content += "M140 S0 ; turn off bed\n"
+        gcode_content += "G28 X0 ; home X axis\n"
         
         # Create temporary G-code file
         gcode_file = tempfile.NamedTemporaryFile(mode='w', suffix='.gcode', delete=False)
@@ -629,15 +506,141 @@ G28 X0 ; home X axis
     
     async def _perform_actual_slicing(self, slicer_input: SlicerAgentInput, effective_settings: Dict[str, Any]) -> Dict[str, Any]:
         """Perform actual slicing using slicer executable."""
-        self.logger.info("Performing actual slicing operation")
+        self.logger.info("Performing actual slicing operation with PrusaSlicer")
+        start_time = time.time()
         
-        # This would implement real slicer integration
-        # For now, just raise an error if called in non-mock mode without slicer
+        # Check if slicer is available
         if not self._is_slicer_available():
             raise SlicerExecutionError("Slicer executable not available for actual slicing")
         
-        # Placeholder implementation
-        raise NotImplementedError("Actual slicing not yet implemented")
+        # Get slicer executable path
+        slicer_path = self.slicer_paths.get(self.slicer_engine)
+        if not slicer_path:
+            raise SlicerExecutionError("No slicer executable found")
+        
+        # Create output G-code file
+        output_file = tempfile.NamedTemporaryFile(suffix='.gcode', delete=False)
+        gcode_path = output_file.name
+        output_file.close()
+        
+        try:
+            # Build comprehensive PrusaSlicer command
+            if 'prusa-slicer' in slicer_path:
+                cmd = [
+                    slicer_path,
+                    '--export-gcode',
+                    '--output', gcode_path,
+                ]
+                
+                # Add comprehensive settings based on effective_settings
+                if 'layer_height' in effective_settings:
+                    cmd.extend(['--layer-height', str(effective_settings['layer_height'])])
+                
+                if 'infill_percentage' in effective_settings:
+                    cmd.extend(['--fill-density', f"{effective_settings['infill_percentage']}%"])
+                
+                if 'print_speed' in effective_settings:
+                    cmd.extend(['--perimeter-speed', str(effective_settings['print_speed'])])
+                
+                # Temperature settings
+                if 'hotend_temperature' in effective_settings:
+                    cmd.extend(['--temperature', str(effective_settings['hotend_temperature'])])
+                    cmd.extend(['--first-layer-temperature', str(effective_settings['hotend_temperature'])])
+                
+                if 'bed_temperature' in effective_settings:
+                    cmd.extend(['--bed-temperature', str(effective_settings['bed_temperature'])])
+                    cmd.extend(['--first-layer-bed-temperature', str(effective_settings['bed_temperature'])])
+                
+                # Advanced settings
+                if 'supports' in effective_settings and effective_settings['supports']:
+                    cmd.extend(['--support-material'])
+                
+                if 'retraction_distance' in effective_settings:
+                    cmd.extend(['--retract-length', str(effective_settings['retraction_distance'])])
+                
+                # Quality-based layer height if not explicitly set
+                if 'layer_height' not in effective_settings and 'quality_preset' in effective_settings:
+                    quality_layer_heights = {
+                        'draft': 0.3,
+                        'standard': 0.2,
+                        'fine': 0.15,
+                        'ultra': 0.1
+                    }
+                    layer_height = quality_layer_heights.get(slicer_input.quality_preset, 0.2)
+                    cmd.extend(['--layer-height', str(layer_height)])
+                
+                # Add the input file at the end
+                cmd.append(slicer_input.model_file_path)
+                
+            else:
+                raise SlicerExecutionError(f"Unsupported slicer: {slicer_path}")
+            
+            # Execute slicer command
+            self.logger.info(f"Executing PrusaSlicer command: {' '.join(cmd[:10])}...")  # Log first 10 args
+            self.logger.info(f"Input file: {slicer_input.model_file_path}")
+            self.logger.info(f"Output file: {gcode_path}")
+            
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=600  # 10 minute timeout for complex models
+            )
+            
+            slicing_time = time.time() - start_time
+            
+            # Check for errors
+            if result.returncode != 0:
+                error_msg = f"PrusaSlicer failed with return code {result.returncode}"
+                if result.stderr:
+                    error_msg += f": {result.stderr}"
+                if result.stdout:
+                    error_msg += f" (stdout: {result.stdout})"
+                self.logger.error(error_msg)
+                raise SlicerExecutionError(error_msg)
+            
+            # Verify output file was created and has content
+            if not os.path.exists(gcode_path):
+                raise SlicerExecutionError("PrusaSlicer did not generate G-code output file")
+            
+            file_size = os.path.getsize(gcode_path)
+            if file_size == 0:
+                raise SlicerExecutionError("PrusaSlicer generated empty G-code file")
+            
+            self.logger.info(f"PrusaSlicer completed successfully in {slicing_time:.2f}s")
+            self.logger.info(f"Generated G-code file: {gcode_path} ({file_size} bytes)")
+            
+            # Analyze the generated G-code
+            analysis = self._analyze_gcode_file(gcode_path)
+            
+            # Track temp files for cleanup
+            if not hasattr(self, '_temp_files'):
+                self._temp_files = []
+            self._temp_files.append(gcode_path)
+            
+            return {
+                "gcode_file_path": gcode_path,
+                "gcode_content": None,  # Don't load large G-code into memory
+                "layer_count": analysis.get("layer_count", 0),
+                "slicing_time": slicing_time,
+                "total_movements": analysis.get("total_movements", 0),
+                "profile_used": slicer_input.printer_profile,
+                "estimated_print_time": analysis.get("estimated_print_time", 0),
+                "material_usage": analysis.get("material_usage", 0.0),
+                "file_size": file_size,
+                "slicer_version": "PrusaSlicer-2.7.2",
+                "settings_used": effective_settings
+            }
+            
+        except subprocess.TimeoutExpired:
+            if os.path.exists(gcode_path):
+                os.unlink(gcode_path)
+            raise SlicerExecutionError("PrusaSlicer operation timed out (10 minutes)")
+        except Exception as e:
+            # Clean up output file on error
+            if os.path.exists(gcode_path):
+                os.unlink(gcode_path)
+            raise SlicerExecutionError(f"PrusaSlicer slicing failed: {str(e)}")
     
     def _analyze_gcode_file(self, gcode_file_path: str) -> Dict[str, Any]:
         """Analyze G-code file and extract metrics."""
@@ -798,49 +801,187 @@ G28 X0 ; home X axis
     
     def set_mock_mode(self, enabled: bool) -> None:
         """Set mock mode on or off."""
+        old_mode = self.mock_mode
         self.mock_mode = enabled
-        self.logger.info(f"Mock mode changed from {not enabled} to {enabled}")
-        if enabled:
-            self.logger.info("Mock mode enabled")
-        else:
-            self.logger.info("Mock mode disabled")
+        self.logger.info(f"Mock mode changed from {old_mode} to {enabled}")
     
     def list_profiles(self) -> Dict[str, Any]:
         """List available slicer profiles."""
         return self.profiles
     
+    def _list_profiles_sync(self) -> Dict[str, Any]:
+        """Synchronous version of list_profiles for task execution."""
+        return {"profiles": list(self.profiles.keys())}
+    
+    async def _validate_model_task(self, task_details: Dict[str, Any]) -> Dict[str, Any]:
+        """Validate model file task."""
+        model_path = task_details.get('model_file_path')
+        if not model_path:
+            return {"valid": False, "error": "No model file path provided"}
+        
+        if not os.path.exists(model_path):
+            return {"valid": False, "error": f"File not found: {model_path}"}
+        
+        file_ext = Path(model_path).suffix.lower()
+        if file_ext not in self.supported_input_formats:
+            return {"valid": False, "error": f"Unsupported format: {file_ext}"}
+        
+        return {"valid": True, "format": file_ext}
+    
+    async def _estimate_print_time_task(self, task_details: Dict[str, Any]) -> Dict[str, Any]:
+        """Estimate print time task."""
+        # Simple estimation based on file size and quality
+        model_path = task_details.get('model_file_path', '')
+        quality = task_details.get('quality_preset', 'standard')
+        
+        if os.path.exists(model_path):
+            file_size_mb = os.path.getsize(model_path) / (1024 * 1024)
+            time_multiplier = {'draft': 0.5, 'standard': 1.0, 'fine': 1.5, 'ultra': 2.0}
+            estimated_time = file_size_mb * 10 * time_multiplier.get(quality, 1.0)
+            return {"estimated_print_time_minutes": int(estimated_time)}
+        
+        return {"estimated_print_time_minutes": 0, "error": "File not found"}
+    
     def _validate_profile(self, profile_name: str) -> bool:
-        """Validate if a profile exists."""
+        """Validate if a profile exists and is valid."""
         if profile_name is None:
+            from core.exceptions import ValidationError
             raise ValidationError("Profile name cannot be None")
-        return profile_name in self.profiles
+        
+        return profile_name in self.predefined_profiles
     
-    def _validate_quality_preset(self, preset: str) -> bool:
-        """Validate quality preset."""
+    def _validate_quality_preset(self, quality_preset: str) -> bool:
+        """Validate if a quality preset is valid."""
         valid_presets = ["draft", "standard", "fine", "ultra"]
-        return preset in valid_presets
+        return quality_preset in valid_presets
     
-    def _customize_profile(self, base_profile: str, custom_settings: Dict[str, Any]) -> Dict[str, Any]:
-        """Customize a base profile with custom settings."""
-        if base_profile not in self.profiles:
-            raise ValidationError(f"Base profile '{base_profile}' not found")
-        
-        # Start with base profile
-        customized = self.profiles[base_profile].copy()
-        
-        # Apply custom settings
-        customized.update(custom_settings)
-        
-        return customized
+    def _get_material_settings(self, material: str) -> Dict[str, Any]:
+        """Get material-specific settings."""
+        material_settings = {
+            "PLA": {
+                "hotend_temperature": 200,
+                "bed_temperature": 60,
+                "retraction_distance": 6.0
+            },
+            "PETG": {
+                "hotend_temperature": 245,
+                "bed_temperature": 85,
+                "retraction_distance": 4.0
+            },
+            "ABS": {
+                "hotend_temperature": 240,
+                "bed_temperature": 100,
+                "retraction_distance": 6.0
+            },
+            "TPU": {
+                "hotend_temperature": 220,
+                "bed_temperature": 50,
+                "retraction_distance": 3.0
+            }
+        }
+        return material_settings.get(material, material_settings["PLA"])
     
-    def _is_supported_format(self, file_path: str) -> bool:
+    def _get_printer_settings(self, printer: str) -> Dict[str, Any]:
+        """Get printer-specific settings."""
+        printer_settings = {
+            "ender3": {
+                "build_volume": [220, 220, 250],
+                "nozzle_diameter": 0.4,
+                "max_print_speed": 60
+            },
+            "prusa_mk3s": {
+                "build_volume": [250, 210, 200],
+                "nozzle_diameter": 0.4,
+                "max_print_speed": 50
+            },
+            "cr10": {
+                "build_volume": [300, 300, 400],
+                "nozzle_diameter": 0.4,
+                "max_print_speed": 50
+            }
+        }
+        return printer_settings.get(printer, printer_settings["ender3"])
+    
+    def _get_quality_settings(self, quality: str) -> Dict[str, Any]:
+        """Get quality-specific settings."""
+        quality_settings = {
+            "draft": {
+                "layer_height": 0.3,
+                "infill_percentage": 15,
+                "perimeters": 2
+            },
+            "standard": {
+                "layer_height": 0.2,
+                "infill_percentage": 20,
+                "perimeters": 3
+            },
+            "fine": {
+                "layer_height": 0.15,
+                "infill_percentage": 25,
+                "perimeters": 3
+            },
+            "ultra": {
+                "layer_height": 0.1,
+                "infill_percentage": 30,
+                "perimeters": 4
+            }
+        }
+        return quality_settings.get(quality, quality_settings["standard"])
+    
+    def _is_supported_format(self, filename: str) -> bool:
         """Check if file format is supported."""
-        supported_formats = [".stl", ".obj", ".3mf", ".amf"]
-        file_ext = Path(file_path).suffix.lower()
+        supported_formats = ['.stl', '.obj', '.3mf', '.amf']
+        file_ext = Path(filename).suffix.lower()
         return file_ext in supported_formats
     
+    def _customize_profile(self, base_profile: str, custom_settings: Dict[str, Any]) -> Dict[str, Any]:
+        """Customize a profile with custom settings."""
+        if base_profile not in self.predefined_profiles:
+            raise ValueError(f"Base profile {base_profile} not found")
+        
+        profile = self.predefined_profiles[base_profile].copy()
+        profile.update(custom_settings)
+        return profile
+    
     def _merge_profile_settings(self, base_profile: Dict[str, Any], custom_settings: Dict[str, Any]) -> Dict[str, Any]:
-        """Merge base profile with custom settings."""
+        """Merge profile settings with custom overrides."""
         merged = base_profile.copy()
         merged.update(custom_settings)
         return merged
+    
+    def _estimate_print_time(self, gcode_metrics: Dict[str, Any]) -> float:
+        """Estimate print time based on G-code metrics."""
+        layer_count = gcode_metrics.get("layer_count", 0)
+        total_movements = gcode_metrics.get("total_movements", 0)
+        
+        # Rough estimation: 2 minutes per layer + movement time
+        base_time = layer_count * 2.0
+        movement_time = total_movements * 0.01  # 0.01 minutes per movement
+        
+        return max(base_time + movement_time, 1.0)  # Minimum 1 minute
+    
+    def _estimate_material_usage(self, gcode_metrics: Dict[str, Any]) -> float:
+        """Estimate material usage based on G-code metrics."""
+        layer_count = gcode_metrics.get("layer_count", 0)
+        total_movements = gcode_metrics.get("total_movements", 0)
+        
+        # Rough estimation: 0.5g per layer
+        material_usage = layer_count * 0.5
+        
+        return max(material_usage, 0.1)  # Minimum 0.1g
+    
+    def _postprocess_gcode(self, gcode_content: str) -> str:
+        """Post-process G-code content."""
+        # Basic post-processing (could be enhanced)
+        lines = gcode_content.split('\n')
+        processed_lines = []
+        
+        for line in lines:
+            # Remove empty lines and normalize
+            line = line.strip()
+            if line and not line.startswith(';'):
+                processed_lines.append(line)
+            elif line.startswith(';'):
+                processed_lines.append(line)  # Keep comments
+        
+        return '\n'.join(processed_lines)

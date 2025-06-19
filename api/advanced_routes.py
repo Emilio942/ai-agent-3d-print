@@ -5,12 +5,13 @@ This module provides REST API endpoints for AI-enhanced design analysis,
 optimization suggestions, historical data tracking, and learning insights.
 """
 
-from fastapi import APIRouter, HTTPException, UploadFile, File, Depends, Query
+from fastapi import APIRouter, HTTPException, UploadFile, File, Depends, Query, BackgroundTasks
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 from pathlib import Path
 import tempfile
+import uuid
 from datetime import datetime
 
 from core.ai_design_enhancer import AIDesignEnhancer, DesignAnalysisResult
@@ -19,6 +20,11 @@ from core.historical_data_system import (
 )
 from core.print_preview import PrintPreviewManager
 from core.logger import get_logger
+from core.advanced_features import BatchProcessor, PrintHistory, AdvancedConfigManager, DEFAULT_PROFILES
+from core.ai_image_to_3d import AIImageTo3DConverter
+from core.voice_control import VoiceControlManager, VoiceCommand
+from core.analytics_dashboard import AnalyticsDashboard, MetricType
+from core.template_library import TemplateLibrary, TemplateCategory, PrintDifficulty
 
 logger = get_logger(__name__)
 
@@ -29,6 +35,23 @@ router = APIRouter(prefix="/api/advanced", tags=["advanced"])
 ai_enhancer = AIDesignEnhancer()
 historical_system = HistoricalDataSystem()
 preview_manager = PrintPreviewManager()
+
+# Initialize additional advanced features
+print_history = PrintHistory()
+config_manager = AdvancedConfigManager()
+# BatchProcessor will be initialized when needed with orchestrator
+
+# Initialize AI image-to-3D converter
+ai_converter = AIImageTo3DConverter()
+
+# Initialize new systems
+voice_control = VoiceControlManager()
+analytics_dashboard = AnalyticsDashboard()
+template_library = TemplateLibrary()
+
+# Initialize default profiles
+for profile_name, profile_config in DEFAULT_PROFILES.items():
+    config_manager.create_profile(profile_name, profile_config)
 
 # Pydantic models for request/response
 class PrintJobRequest(BaseModel):
@@ -66,6 +89,70 @@ class OptimizationFeedbackRequest(BaseModel):
     implemented: bool
     feedback_score: Optional[int] = Field(None, ge=1, le=10)
     notes: Optional[str] = None
+
+class BatchRequest(BaseModel):
+    requests: List[str]
+    settings: Optional[Dict[str, Any]] = None
+
+class BatchResponse(BaseModel):
+    batch_id: str
+    status: str
+    total_requests: int
+    completed: int
+    failed: int
+    success_rate: float
+
+class TemplateRequest(BaseModel):
+    category: str
+    name: str
+    customizations: Optional[Dict[str, Any]] = None
+
+class ProfileRequest(BaseModel):
+    name: str
+    config: Dict[str, Any]
+
+class HistoryStats(BaseModel):
+    total_prints: int
+    success_rate: float
+    recent_prints: List[Dict[str, Any]]
+    popular_requests: List[Dict[str, Any]]
+
+# Voice Control Endpoints
+class VoiceCommandRequest(BaseModel):
+    audio_data: Optional[str] = None  # Base64 encoded audio
+    text_command: Optional[str] = None  # Text version of command
+    confidence_threshold: float = Field(default=0.7, ge=0.0, le=1.0)
+
+# Analytics Dashboard Endpoints
+class AnalyticsQuery(BaseModel):
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    metric_names: Optional[List[str]] = None
+    tags: Optional[Dict[str, str]] = None
+
+# Template Library Endpoints
+class TemplateSearchRequest(BaseModel):
+    category: Optional[str] = None
+    difficulty: Optional[str] = None
+    search_term: Optional[str] = None
+    tags: Optional[List[str]] = None
+
+class TemplateCustomizationRequest(BaseModel):
+    template_id: str
+    parameters: Dict[str, Any]
+    target_format: str = Field(default="stl", pattern="^(stl|obj|ply)$")
+
+# Global batch processor (will be initialized when needed)
+batch_processor: Optional[BatchProcessor] = None
+
+def get_batch_processor():
+    """Get or create batch processor instance."""
+    global batch_processor
+    if batch_processor is None:
+        from main import WorkflowOrchestrator
+        orchestrator = WorkflowOrchestrator()
+        batch_processor = BatchProcessor(orchestrator)
+    return batch_processor
 
 # AI Design Enhancement Endpoints
 @router.post("/design/analyze")
@@ -527,4 +614,710 @@ async def health_check_advanced():
         
     except Exception as e:
         logger.error(f"Health check failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Batch Processing and Template-Based Printing Endpoints
+@router.post("/batch/process")
+async def process_batch_requests(batch: BatchRequest):
+    """Process a batch of print requests"""
+    try:
+        processor = get_batch_processor()
+        batch_id = processor.start_batch_processing(batch.requests, batch.settings)
+        
+        return {
+            'success': True,
+            'data': {
+                'batch_id': batch_id,
+                'status': 'processing'
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Error processing batch requests: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/batch/status/{batch_id}")
+async def get_batch_status(batch_id: str):
+    """Get the status of a batch processing job"""
+    try:
+        processor = get_batch_processor()
+        status = processor.get_batch_status(batch_id)
+        
+        if status is None:
+            raise HTTPException(status_code=404, detail="Batch not found")
+        
+        return {
+            'success': True,
+            'data': status
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting batch status: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/template/create")
+async def create_print_template(template: TemplateRequest):
+    """Create a new print template"""
+    try:
+        template_id = config_manager.create_template(template.category, template.name, template.customizations)
+        
+        return {
+            'success': True,
+            'data': {
+                'template_id': template_id,
+                'message': 'Template created successfully'
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Error creating template: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/template/{template_id}")
+async def get_template(template_id: str):
+    """Get details of a specific print template"""
+    try:
+        template = config_manager.get_template(template_id)
+        
+        if template is None:
+            raise HTTPException(status_code=404, detail="Template not found")
+        
+        return {
+            'success': True,
+            'data': template
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting template: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.put("/template/{template_id}")
+async def update_template(template_id: str, updates: TemplateRequest):
+    """Update an existing print template"""
+    try:
+        success = config_manager.update_template(template_id, updates.customizations)
+        
+        if not success:
+            raise HTTPException(status_code=404, detail="Template not found")
+        
+        return {
+            'success': True,
+            'message': 'Template updated successfully'
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating template: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/template/{template_id}")
+async def delete_template(template_id: str):
+    """Delete a print template"""
+    try:
+        success = config_manager.delete_template(template_id)
+        
+        if not success:
+            raise HTTPException(status_code=404, detail="Template not found")
+        
+        return {
+            'success': True,
+            'message': 'Template deleted successfully'
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting template: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/history/stats/{user_id}")
+async def get_history_statistics(user_id: str):
+    """Get statistics about a user's print history"""
+    try:
+        stats = historical_system.get_user_history_statistics(user_id)
+        
+        return {
+            'success': True,
+            'data': stats
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting history statistics: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# New Batch Processing and Template Endpoints
+
+@router.post("/batch", response_model=BatchResponse)
+async def submit_batch_request(
+    batch_request: BatchRequest,
+    background_tasks: BackgroundTasks
+):
+    """Submit multiple print requests for batch processing."""
+    try:
+        processor = get_batch_processor()
+        
+        # Start batch processing in background
+        async def process_batch_async():
+            try:
+                await processor.orchestrator.initialize()
+                result = await processor.process_batch(
+                    batch_request.requests,
+                    batch_request.settings
+                )
+                
+                # Add each successful print to history
+                for print_result in result["results"]:
+                    if print_result.get("success"):
+                        print_history.add_print(print_result)
+                        
+                logger.info(f"✅ Batch processing completed: {result['batch_id']}")
+                
+            except Exception as e:
+                logger.error(f"❌ Batch processing failed: {e}")
+            finally:
+                await processor.orchestrator.shutdown()
+        
+        # Start background task
+        background_tasks.add_task(process_batch_async)
+        
+        # Return immediate response
+        return BatchResponse(
+            batch_id="pending",
+            status="started",
+            total_requests=len(batch_request.requests),
+            completed=0,
+            failed=0,
+            success_rate=0.0
+        )
+        
+    except Exception as e:
+        logger.error(f"Failed to start batch processing: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/templates")
+async def list_templates():
+    """List all available print templates."""
+    try:
+        processor = get_batch_processor()
+        return processor.list_templates()
+    except Exception as e:
+        logger.error(f"Failed to list templates: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/template-print")
+async def print_from_template(
+    template_request: TemplateRequest,
+    background_tasks: BackgroundTasks
+):
+    """Create a print job from a template."""
+    try:
+        processor = get_batch_processor()
+        
+        async def process_template_print():
+            try:
+                await processor.orchestrator.initialize()
+                result = await processor.quick_print_from_template(
+                    template_request.category,
+                    template_request.name,
+                    template_request.customizations
+                )
+                
+                if result.get("success"):
+                    print_history.add_print(result)
+                    
+                logger.info(f"✅ Template print completed: {template_request.category}/{template_request.name}")
+                
+            except Exception as e:
+                logger.error(f"❌ Template print failed: {e}")
+            finally:
+                await processor.orchestrator.shutdown()
+        
+        background_tasks.add_task(process_template_print)
+        
+        return {"status": "started", "template": f"{template_request.category}/{template_request.name}"}
+        
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Failed to start template print: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/print-history", response_model=HistoryStats)
+async def get_print_history_stats(limit: int = 10):
+    """Get print history and statistics."""
+    try:
+        return HistoryStats(
+            total_prints=len(print_history.history),
+            success_rate=print_history.get_success_rate(),
+            recent_prints=print_history.get_recent_prints(limit),
+            popular_requests=print_history.get_popular_requests()
+        )
+    except Exception as e:
+        logger.error(f"Failed to get print history: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/quick-examples")
+async def get_quick_examples():
+    """Get example batch requests for testing."""
+    return {
+        "basic_shapes": [
+            "Print a 2cm cube",
+            "Print a 3cm sphere", 
+            "Print a cylinder 4cm tall and 2cm diameter"
+        ],
+        "household_items": [
+            "Print a phone stand",
+            "Print a cable organizer",
+            "Print a wall hook"
+        ],
+        "educational": [
+            "Print a gear set for learning mechanics",
+            "Print a molecule model of water",
+            "Print puzzle pieces for a brain teaser"
+        ]
+    }
+
+# AI Image-to-3D Conversion Endpoints
+@router.post("/image-to-3d/convert")
+async def convert_image_to_3d(
+    file: UploadFile = File(...),
+    style: str = Query("realistic", description="3D conversion style"),
+    quality: str = Query("medium", description="Output quality: low, medium, high"),
+    format: str = Query("stl", description="Output format: stl, obj, ply")
+):
+    """Convert an uploaded image to a 3D model using AI"""
+    try:
+        logger.info(f"🖼️ Processing image-to-3D conversion: {file.filename}")
+        
+        # Validate file type
+        if not file.content_type.startswith('image/'):
+            raise HTTPException(status_code=400, detail="File must be an image")
+        
+        # Read image data
+        image_data = await file.read()
+        
+        # Convert image to 3D model
+        result = await ai_converter.convert_image_to_3d(
+            image_data=image_data,
+            filename=file.filename,
+            style=style,
+            quality=quality,
+            output_format=format
+        )
+        
+        if result['success']:
+            logger.info(f"✅ Image-to-3D conversion completed: {result['model_path']}")
+            return JSONResponse({
+                "success": True,
+                "model_id": result['model_id'],
+                "model_path": result['model_path'],
+                "preview_url": result['preview_url'],
+                "metadata": result['metadata'],
+                "processing_time": result['processing_time']
+            })
+        else:
+            raise HTTPException(status_code=500, detail=result.get('error', 'Conversion failed'))
+            
+    except Exception as e:
+        logger.error(f"❌ Image-to-3D conversion failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Conversion error: {str(e)}")
+
+@router.get("/image-to-3d/models")
+async def list_converted_models():
+    """List all converted 3D models from images"""
+    try:
+        models = await ai_converter.list_converted_models()
+        return JSONResponse({
+            "success": True,
+            "models": models,
+            "count": len(models)
+        })
+    except Exception as e:
+        logger.error(f"❌ Failed to list converted models: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/image-to-3d/models/{model_id}")
+async def get_converted_model(model_id: str):
+    """Get details of a specific converted 3D model"""
+    try:
+        model = await ai_converter.get_model_details(model_id)
+        if model:
+            return JSONResponse({
+                "success": True,
+                "model": model
+            })
+        else:
+            raise HTTPException(status_code=404, detail="Model not found")
+    except Exception as e:
+        logger.error(f"❌ Failed to get model details: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/image-to-3d/models/{model_id}")
+async def delete_converted_model(model_id: str):
+    """Delete a converted 3D model"""
+    try:
+        success = await ai_converter.delete_model(model_id)
+        if success:
+            return JSONResponse({
+                "success": True,
+                "message": "Model deleted successfully"
+            })
+        else:
+            raise HTTPException(status_code=404, detail="Model not found")
+    except Exception as e:
+        logger.error(f"❌ Failed to delete model: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/image-to-3d/models/{model_id}/print")
+async def print_converted_model(model_id: str, request_data: Dict[str, Any]):
+    """Submit a converted 3D model for printing"""
+    try:
+        model = await ai_converter.get_model_details(model_id)
+        if not model:
+            raise HTTPException(status_code=404, detail="Model not found")
+        
+        # Create print job for the converted model
+        job_data = {
+            "user_request": f"Print converted 3D model: {model['original_filename']}",
+            "model_path": model['model_path'],
+            "priority": request_data.get('priority', 'normal'),
+            "source": "image_to_3d_conversion",
+            "model_id": model_id
+        }
+        
+        # Create a simple print job directly
+        job_id = str(uuid.uuid4())
+        job = {
+            "id": job_id,
+            "user_request": job_data["user_request"],
+            "model_path": job_data["model_path"],
+            "priority": job_data["priority"],
+            "source": job_data["source"],
+            "model_id": model_id,
+            "status": "created",
+            "created_at": datetime.now().isoformat()
+        }
+        
+        # Store in print history
+        print_history.add_job(job)
+        
+        return JSONResponse({
+            "success": True,
+            "job_id": job['id'],
+            "message": "Print job created for converted model"
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Failed to create print job for converted model: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Voice Control Endpoints
+@router.get("/voice/status")
+async def get_voice_control_status():
+    """Get the current status of voice control system"""
+    try:
+        status = await voice_control.get_status()
+        return JSONResponse({
+            "success": True,
+            "status": status
+        })
+    except Exception as e:
+        logger.error(f"❌ Failed to get voice control status: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/voice/start")
+async def start_voice_control():
+    """Start voice recognition"""
+    try:
+        success = await voice_control.start_listening()
+        return JSONResponse({
+            "success": success,
+            "message": "Voice control started" if success else "Failed to start voice control"
+        })
+    except Exception as e:
+        logger.error(f"❌ Failed to start voice control: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/voice/stop")
+async def stop_voice_control():
+    """Stop voice recognition"""
+    try:
+        success = await voice_control.stop_listening()
+        return JSONResponse({
+            "success": success,
+            "message": "Voice control stopped" if success else "Failed to stop voice control"
+        })
+    except Exception as e:
+        logger.error(f"❌ Failed to stop voice control: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/voice/command")
+async def process_voice_command(request: VoiceCommandRequest):
+    """Process a voice command (audio or text)"""
+    try:
+        if request.text_command:
+            # Process text command
+            command = await voice_control.process_text_command(
+                request.text_command, 
+                request.confidence_threshold
+            )
+        elif request.audio_data:
+            # Process audio command
+            command = await voice_control.process_audio_command(
+                request.audio_data, 
+                request.confidence_threshold
+            )
+        else:
+            raise HTTPException(status_code=400, detail="Either text_command or audio_data must be provided")
+        
+        return JSONResponse({
+            "success": True,
+            "command": {
+                "intent": command.intent,
+                "parameters": command.parameters,
+                "confidence": command.confidence,
+                "recognized_text": command.command
+            }
+        })
+    except Exception as e:
+        logger.error(f"❌ Failed to process voice command: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/voice/commands")
+async def get_voice_command_history():
+    """Get recent voice command history"""
+    try:
+        history = await voice_control.get_command_history()
+        return JSONResponse({
+            "success": True,
+            "commands": [
+                {
+                    "command": cmd.command,
+                    "intent": cmd.intent,
+                    "parameters": cmd.parameters,
+                    "confidence": cmd.confidence,
+                    "timestamp": cmd.timestamp.isoformat()
+                }
+                for cmd in history
+            ]
+        })
+    except Exception as e:
+        logger.error(f"❌ Failed to get voice command history: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Analytics Dashboard Endpoints
+@router.get("/analytics/overview")
+async def get_analytics_overview():
+    """Get comprehensive analytics overview"""
+    try:
+        overview = await analytics_dashboard.get_overview()
+        return JSONResponse({
+            "success": True,
+            "overview": overview
+        })
+    except Exception as e:
+        logger.error(f"❌ Failed to get analytics overview: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/analytics/query")
+async def query_analytics(request: AnalyticsQuery):
+    """Query analytics data with filters"""
+    try:
+        data = await analytics_dashboard.query_metrics(
+            start_date=request.start_date,
+            end_date=request.end_date,
+            metric_names=request.metric_names,
+            tags=request.tags
+        )
+        return JSONResponse({
+            "success": True,
+            "data": data
+        })
+    except Exception as e:
+        logger.error(f"❌ Failed to query analytics: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/analytics/metrics/live")
+async def get_live_metrics():
+    """Get real-time system metrics"""
+    try:
+        metrics = await analytics_dashboard.get_live_metrics()
+        return JSONResponse({
+            "success": True,
+            "metrics": metrics
+        })
+    except Exception as e:
+        logger.error(f"❌ Failed to get live metrics: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/analytics/performance")
+async def get_performance_analytics():
+    """Get performance analytics and insights"""
+    try:
+        performance = await analytics_dashboard.get_performance_insights()
+        return JSONResponse({
+            "success": True,
+            "performance": performance
+        })
+    except Exception as e:
+        logger.error(f"❌ Failed to get performance analytics: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/analytics/health")
+async def get_system_health():
+    """Get system health metrics"""
+    try:
+        health = await analytics_dashboard.get_system_health()
+        return JSONResponse({
+            "success": True,
+            "health": health
+        })
+    except Exception as e:
+        logger.error(f"❌ Failed to get system health: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Template Library Endpoints
+@router.get("/templates")
+async def list_templates():
+    """List all available templates"""
+    try:
+        templates = await template_library.list_templates()
+        return JSONResponse({
+            "success": True,
+            "templates": templates,
+            "count": len(templates)
+        })
+    except Exception as e:
+        logger.error(f"❌ Failed to list templates: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/templates/search")
+async def search_templates(request: TemplateSearchRequest):
+    """Search templates with filters"""
+    try:
+        templates = await template_library.search_templates(
+            category=request.category,
+            difficulty=request.difficulty,
+            search_term=request.search_term,
+            tags=request.tags
+        )
+        return JSONResponse({
+            "success": True,
+            "templates": templates,
+            "count": len(templates)
+        })
+    except Exception as e:
+        logger.error(f"❌ Failed to search templates: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/templates/categories")
+async def get_template_categories():
+    """Get all template categories"""
+    try:
+        categories = await template_library.get_categories()
+        return JSONResponse({
+            "success": True,
+            "categories": categories
+        })
+    except Exception as e:
+        logger.error(f"❌ Failed to get template categories: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/templates/{template_id}")
+async def get_template_details(template_id: str):
+    """Get detailed information about a specific template"""
+    try:
+        template = await template_library.get_template(template_id)
+        if template:
+            return JSONResponse({
+                "success": True,
+                "template": template
+            })
+        else:
+            raise HTTPException(status_code=404, detail="Template not found")
+    except Exception as e:
+        logger.error(f"❌ Failed to get template details: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/templates/{template_id}/customize")
+async def customize_template(template_id: str, request: TemplateCustomizationRequest):
+    """Customize a template with user parameters"""
+    try:
+        result = await template_library.customize_template(
+            template_id=template_id,
+            parameters=request.parameters,
+            target_format=request.target_format
+        )
+        return JSONResponse({
+            "success": True,
+            "customized_model": result
+        })
+    except Exception as e:
+        logger.error(f"❌ Failed to customize template: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/templates/{template_id}/print")
+async def print_template(template_id: str, request_data: Dict[str, Any]):
+    """Submit a template for printing (with optional customizations)"""
+    try:
+        template = await template_library.get_template(template_id)
+        if not template:
+            raise HTTPException(status_code=404, detail="Template not found")
+        
+        # Apply customizations if provided
+        model_path = template['model_path']
+        if request_data.get('parameters'):
+            customization_result = await template_library.customize_template(
+                template_id=template_id,
+                parameters=request_data['parameters'],
+                target_format="stl"
+            )
+            model_path = customization_result['model_path']
+        
+        # Create print job for the template
+        job_id = str(uuid.uuid4())
+        job = {
+            "id": job_id,
+            "user_request": f"Print template: {template['name']}",
+            "model_path": model_path,
+            "priority": request_data.get('priority', 'normal'),
+            "source": "template_library",
+            "template_id": template_id,
+            "status": "created",
+            "created_at": datetime.now().isoformat()
+        }
+        
+        # Store in print history
+        print_history.add_job(job)
+        
+        return JSONResponse({
+            "success": True,
+            "job_id": job['id'],
+            "message": "Print job created for template"
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ Failed to create print job for template: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/templates/{template_id}/preview")
+async def preview_template(template_id: str):
+    """Generate a preview of a template"""
+    try:
+        preview = await template_library.generate_preview(template_id)
+        return JSONResponse({
+            "success": True,
+            "preview": preview
+        })
+    except Exception as e:
+        logger.error(f"❌ Failed to generate template preview: {e}")
         raise HTTPException(status_code=500, detail=str(e))

@@ -96,7 +96,8 @@ class BaseSchema(BaseModel):
         use_enum_values=True,
         validate_assignment=True,
         extra="forbid",
-        str_strip_whitespace=True
+        str_strip_whitespace=True,
+        protected_namespaces=()
     )
 
 

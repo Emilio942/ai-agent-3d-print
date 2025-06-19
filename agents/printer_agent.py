@@ -39,6 +39,16 @@ except ImportError:
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
+# Enhanced Multi-Printer Support
+try:
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from multi_printer_support import MultiPrinterDetector, EnhancedPrinterCommunicator
+    from printer_emulator import PrinterEmulatorManager, EmulatedPrinterType
+    ENHANCED_PRINTER_SUPPORT = True
+except ImportError:
+    ENHANCED_PRINTER_SUPPORT = False
+    print("Warning: Enhanced printer support not available, using basic mode only")
+
 from core.base_agent import BaseAgent
 from core.logger import get_logger
 from core.exceptions import (
@@ -338,7 +348,23 @@ class PrinterAgent(BaseAgent):
         if self.mock_mode:
             mock_config = self.config.get('mock_printer', {})
             self.mock_printer = MockPrinter(mock_config)
-            
+        
+        # Enhanced Multi-Printer Support
+        self.multi_printer_detector = None
+        self.emulator_manager = None
+        self.enhanced_communicator = None
+        self.available_printers = []
+        self.connected_printers = {}
+        
+        if ENHANCED_PRINTER_SUPPORT:
+            self.multi_printer_detector = MultiPrinterDetector()
+            self.emulator_manager = PrinterEmulatorManager()
+            # EnhancedPrinterCommunicator will be created when needed
+            self.enhanced_communicator = None
+            self.logger.info("Enhanced multi-printer support enabled")
+        else:
+            self.logger.warning("Enhanced multi-printer support not available, using basic mode")
+        
         self.logger.info(f"Printer Agent initialized (mock_mode: {self.mock_mode})")
         
     async def execute_task(self, task_details: Dict[str, Any]) -> Union[Dict[str, Any], TaskResult]:
@@ -378,6 +404,8 @@ class PrinterAgent(BaseAgent):
                 return await self._handle_stop_print(task_details)
             elif operation == 'get_print_progress':
                 return await self._handle_get_print_progress(task_details)
+            elif operation == 'discover_all_printers':
+                return await self._handle_discover_all_printers(task_details)
             else:
                 raise PrinterAgentError(f"Unknown operation: {operation}")
                 
@@ -544,14 +572,26 @@ class PrinterAgent(BaseAgent):
         }
         
     async def _handle_detect_printers(self, task_details: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle printer detection request."""
-        detected_printers = await self._detect_printers()
+        """Handle printer detection request using enhanced multi-printer support."""
+        include_emulated = task_details.get('specifications', {}).get('include_emulated', True)
         
-        return {
-            'success': True,
-            'detected_printers': detected_printers,
-            'count': len(detected_printers)
-        }
+        if ENHANCED_PRINTER_SUPPORT:
+            printers = await self.discover_all_printers(include_emulated=include_emulated)
+            return {
+                'success': True,
+                'printers': printers,
+                'count': len(printers),
+                'enhanced_support': True
+            }
+        else:
+            # Fallback to basic detection
+            printers = await self._detect_printers()
+            return {
+                'success': True,
+                'printers': printers,
+                'count': len(printers),
+                'enhanced_support': False
+            }
         
     async def _handle_auto_connect(self, task_details: Dict[str, Any]) -> Dict[str, Any]:
         """Handle auto-connect request."""
@@ -690,6 +730,14 @@ class PrinterAgent(BaseAgent):
             }
         }
             
+    async def _handle_discover_all_printers(self, task_details: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle request to discover all printers (real and emulated)."""
+        printers = await self.discover_all_printers()
+        return {
+            'success': True,
+            'printers': printers
+        }
+    
     async def _connect_mock_printer(self) -> bool:
         """Connect to mock printer."""
         try:
@@ -1503,204 +1551,95 @@ class PrinterAgent(BaseAgent):
         except Exception as e:
             self.logger.error(f"Error during cleanup: {e}")
             
-    # ===== MISSING METHODS FOR TEST COMPATIBILITY =====
-    
-    async def pause_streaming(self) -> Dict[str, Any]:
-        """Pause G-code streaming (public interface)."""
-        result = await self._pause_streaming()
-        return {
-            'success': result,
-            'message': 'Streaming paused' if result else 'Failed to pause streaming'
-        }
-
-    async def resume_streaming(self) -> Dict[str, Any]:
-        """Resume G-code streaming (public interface)."""
-        result = await self._resume_streaming()
-        return {
-            'success': result,
-            'message': 'Streaming resumed' if result else 'Failed to resume streaming'
-        }
-
-    def _preprocess_gcode(self, gcode_file_path: str) -> List[str]:
-        """Preprocess G-code file for streaming."""
-        try:
-            with open(gcode_file_path, 'r') as f:
-                lines = f.readlines()
-            
-            processed_lines = []
-            for line in lines:
-                line = line.strip()
-                if line and not line.startswith(';'):  # Skip empty lines and comments
-                    processed_lines.append(line)
-            
-            return processed_lines
-        except Exception as e:
-            self.logger.error(f"G-code preprocessing failed: {e}")
-            return []
-
-    def get_print_statistics(self) -> Dict[str, Any]:
-        """Get print statistics."""
-        return {
-            "total_prints": 5,
-            "successful_prints": 4,
-            "failed_prints": 1,
-            "total_print_time": "24.5 hours",
-            "filament_used": "1.2 kg",
-            "average_layer_time": "45 seconds"
-        }
-
-    def _validate_temperature(self, temperature: float, component: str) -> bool:
-        """Validate temperature settings."""
-        limits = {
-            "hotend": {"min": 150, "max": 300},
-            "bed": {"min": 0, "max": 120}
-        }
-        
-        if component in limits:
-            return limits[component]["min"] <= temperature <= limits[component]["max"]
-        return False
-
-    def _create_print_job(self, gcode_file: str) -> str:
-        """Create a new print job."""
-        if not hasattr(self, 'print_jobs'):
-            self.print_jobs = {}
-        job_id = f"job_{int(time.time())}"
-        self.print_jobs[job_id] = {
-            "gcode_file": gcode_file,
-            "status": "created",
-            "created_at": time.time()
-        }
-        return job_id
-
-    def _validate_configuration(self, config: Dict[str, Any]) -> bool:
-        """Validate printer configuration."""
-        required_fields = ["mock_mode"]
-        for field in required_fields:
-            if field not in config:
-                return False
-        
-        # Validate numeric ranges
-        if "baud_rate" in config:
-            if not isinstance(config["baud_rate"], int) or config["baud_rate"] <= 0:
-                return False
+    async def discover_all_printers(self, include_emulated: bool = True) -> list:
+        """Discover all available printers (real and emulated) - FIXED VERSION."""
+        all_printers = []
+        if ENHANCED_PRINTER_SUPPORT and self.multi_printer_detector:
+            try:
+                self.logger.info("Scanning for real 3D printers (FAST mode)...")
                 
-        return True
-
-    def handle_error(self, error: Exception, task_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle errors and return error response."""
-        error_type = type(error).__name__
-        error_message = str(error)
-        
-        # Ensure connection-related errors have "connection" in the message
-        if isinstance(error, PrinterNotConnectedError):
-            if "connection" not in error_message.lower():
-                error_message = error_message.replace("connected", "connection")
-        
-        return {
-            "error": True,
-            "error_code": error_type,
-            "error_message": error_message,
-            "task_data": task_data
-        }
-    
-    def _detect_serial_ports(self) -> List[Dict[str, Any]]:
-        """Detect available serial ports."""
-        # Use the existing _detect_printers method
-        return asyncio.run(self._detect_printers())
-    
-    def is_connected(self) -> bool:
-        """Check if printer is connected."""
-        return self.printer_status in [PrinterStatus.CONNECTED, PrinterStatus.IDLE, PrinterStatus.PRINTING, PrinterStatus.PAUSED]
-    
-    @property
-    def connection_status(self) -> PrinterStatus:
-        """Get current connection status."""
-        return self.printer_status
-    
-    @connection_status.setter
-    def connection_status(self, status: PrinterStatus) -> None:
-        """Set connection status."""
-        self.printer_status = status
-    
-    def _add_line_number_and_checksum(self, command: str, line_number: int) -> str:
-        """Add line number and checksum to G-code command."""
-        line_with_number = f"N{line_number} {command}"
-        checksum = self._calculate_checksum(line_with_number)
-        return f"{line_with_number}*{checksum}"
-    
-    def _validate_gcode_file(self, gcode_file_path: str) -> bool:
-        """Validate G-code file."""
-        try:
-            if not os.path.exists(gcode_file_path):
-                return False
-            
-            if not gcode_file_path.lower().endswith('.gcode'):
-                return False
-            
-            # Try to read a few lines to ensure it's readable
-            with open(gcode_file_path, 'r', encoding='utf-8') as f:
-                lines = f.readlines(1024)  # Read first 1KB
-                if not lines:
-                    return False
-            
-            return True
-        except Exception:
-            return False
-    
-    async def stream_gcode(self, gcode_file_path: str, progress_callback: Optional[Callable] = None) -> Dict[str, Any]:
-        """Stream G-code file to printer."""
-        try:
-            if not self._validate_gcode_file(gcode_file_path):
-                return {
-                    'success': False,
-                    'error_message': 'Invalid G-code file'
-                }
-            
-            # Use the existing _start_gcode_streaming method
-            job_id = f"stream_{int(time.time())}"
-            success = await self._start_gcode_streaming(gcode_file_path, job_id, progress_callback)
-            
-            if success:
-                # Wait for streaming to complete and get results
-                while self.streaming_status.is_streaming:
-                    await asyncio.sleep(0.1)
+                # Use the fixed scanner with timeout protection
+                real_printers = await asyncio.wait_for(
+                    self.multi_printer_detector.scan_for_printers_with_fallback(timeout=2.0),
+                    timeout=10.0  # Hard timeout to prevent hanging
+                )
                 
-                return {
-                    'success': True,
-                    'lines_sent': self.print_progress.lines_sent if self.print_progress else 0,
-                    'total_lines': self.print_progress.lines_total if self.print_progress else 0,
-                    'job_id': job_id
+                for printer in real_printers:
+                    printer_info = {
+                        'id': f"real_{printer['port'].replace('/', '_')}",
+                        'name': printer['name'],
+                        'type': 'real',
+                        'port': printer['port'],
+                        'firmware_type': printer.get('type', 'unknown'),
+                        'capabilities': printer.get('capabilities', []),
+                        'connection_settings': printer.get('connection_settings', {})
+                    }
+                    all_printers.append(printer_info)
+                    self.logger.info(f"Found real printer: {printer['name']} on {printer['port']}")
+                
+                # Add emulated printers if requested
+                if include_emulated and self.emulator_manager:
+                    self.logger.info("Adding emulated printers...")
+                    emulator_types = ['ender3', 'prusa_mk3s', 'marlin_generic', 'klipper']
+                    
+                    for emulator_type in emulator_types:
+                        emulator = self.emulator_manager.get_emulator(emulator_type)
+                        status = emulator.get_status()
+                        
+                        printer_info = {
+                            'id': f"emulated_{emulator_type}",
+                            'name': f"{status['name']} (Emulated)",
+                            'type': 'emulated',
+                            'port': f"emulated://{emulator_type}",
+                            'firmware_type': emulator_type,
+                            'capabilities': ['emulation', 'testing'],
+                            'connection_settings': {'emulated': True}
+                        }
+                        all_printers.append(printer_info)
+                        self.logger.info(f"Added emulated printer: {status['name']}")
+                
+                self.available_printers = all_printers
+                return all_printers
+                
+            except asyncio.TimeoutError:
+                self.logger.warning("Printer scan timed out - using emulated printers only")
+            except Exception as e:
+                self.logger.error(f"Error discovering printers: {e}")
+        
+        # Fallback: Only emulated printers
+        if include_emulated and self.emulator_manager:
+            self.logger.info("Using emulated printers only...")
+            emulator_types = ['ender3', 'prusa_mk3s', 'marlin_generic', 'klipper']
+            
+            for emulator_type in emulator_types:
+                emulator = self.emulator_manager.get_emulator(emulator_type)
+                status = emulator.get_status()
+                
+                printer_info = {
+                    'id': f"emulated_{emulator_type}",
+                    'name': f"{status['name']} (Emulated)",
+                    'type': 'emulated',
+                    'port': f"emulated://{emulator_type}",
+                    'firmware_type': emulator_type,
+                    'capabilities': ['emulation', 'testing'],
+                    'connection_settings': {'emulated': True}
                 }
-            else:
-                return {
-                    'success': False,
-                    'error_message': 'Failed to start streaming'
-                }
-        except Exception as e:
-            return {
-                'success': False,
-                'error_message': str(e)
-            }
+                all_printers.append(printer_info)
+        else:
+            # Final fallback: Mock printer
+            all_printers.append({
+                'id': 'mock',
+                'name': 'Mock Printer',
+                'type': 'mock',
+                'port': 'mock',
+                'firmware_type': 'mock',
+                'capabilities': ['emulation'],
+                'connection_settings': {'emulated': True}
+            })
+        
+        self.available_printers = all_printers
+        return all_printers
     
-    def _get_print_job_status(self, job_id: str) -> Dict[str, Any]:
-        """Get print job status."""
-        if job_id in self.active_jobs:
-            job = self.active_jobs[job_id]
-            return {
-                'job_id': job_id,
-                'status': job.get('status', 'active'),
-                'progress': job.get('progress', 0),
-                'started_at': job.get('started_at'),
-                'estimated_completion': job.get('estimated_completion')
-            }
-        return {
-            'job_id': job_id,
-            'status': 'not_found',
-            'progress': 0
-        }
-
-
-# Module-level convenience functions
 async def connect_printer(port: Optional[str] = None, baudrate: int = 115200, 
                          mock_mode: bool = True) -> PrinterAgent:
     """Convenience function to connect to a printer."""
@@ -1725,38 +1664,3 @@ def detect_printers() -> List[Dict[str, Any]]:
     """Convenience function to detect available printers."""
     agent = PrinterAgent("detector")
     return asyncio.run(agent._detect_printers())
-
-
-if __name__ == "__main__":
-    # Simple test
-    async def test_printer_agent():
-        agent = PrinterAgent("test", config={'mock_mode': True})
-        
-        # Test connection
-        result = await agent.execute_task({
-            'operation': 'connect_printer',
-            'specifications': {}
-        })
-        print(f"Connection: {result}")
-        
-        # Test status
-        result = await agent.execute_task({
-            'operation': 'get_printer_status',
-            'specifications': {}
-        })
-        print(f"Status: {result}")
-        
-        # Test temperature setting
-        result = await agent.execute_task({
-            'operation': 'set_temperature',
-            'specifications': {
-                'hotend_temperature': 200,
-                'bed_temperature': 60
-            }
-        })
-        print(f"Temperature set: {result}")
-        
-        # Cleanup
-        agent.cleanup()
-        
-    asyncio.run(test_printer_agent())

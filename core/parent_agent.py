@@ -10,7 +10,7 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Dict, List, Optional, Set, Any, Callable, Awaitable
+from typing import Dict, List, Optional, Set, Any, Callable, Awaitable, Union
 from contextlib import asynccontextmanager
 
 import sys
@@ -557,16 +557,16 @@ class ParentAgent(BaseAgent):
         """Background task to process incoming messages."""
         while not self._shutdown:
             try:
-                message = await self.message_queue.receive(timeout=1.0)
+                message = await self.message_queue.receive_message(timeout=1.0)
                 if message:
                     await self._handle_message(message)
-                    await self.message_queue.ack(message.id)
+                    await self.message_queue.acknowledge_message(message.id)
             except asyncio.TimeoutError:
                 continue
             except Exception as e:
                 self.logger.error(f"Message processing error: {str(e)}")
-                if message:
-                    await self.message_queue.nack(message.id, requeue=False)
+                # Skip acknowledgment on error for now
+                continue
     
     async def _handle_message(self, message: Message) -> None:
         """Handle incoming messages from other agents."""
@@ -789,12 +789,22 @@ class ParentAgent(BaseAgent):
                     "message": "Starting research and concept generation"
                 })
             
+            # Handle both string and dict input
+            if isinstance(input_data, str):
+                user_request = input_data
+                workflow_id = 'unknown'
+                metadata = {}
+            else:
+                user_request = input_data.get("user_request", input_data)
+                workflow_id = input_data.get('workflow_id', 'unknown')
+                metadata = input_data.get("metadata", {})
+            
             # Execute research agent
-            research_result = self._research_agent.execute_task({
-                "task_id": f"research_{input_data.get('workflow_id', 'unknown')}",
+            research_result = await self._research_agent.execute_task({
+                "task_id": f"research_{workflow_id}",
                 "operation": "analyze_and_research",
-                "user_request": input_data["user_request"],
-                "metadata": input_data.get("metadata", {})
+                "user_request": user_request,
+                "metadata": metadata
             })
             
             if progress_callback:
@@ -808,7 +818,7 @@ class ParentAgent(BaseAgent):
                 success=research_result.success,
                 data={
                     "design_specification": research_result.data,
-                    "user_request": input_data["user_request"]
+                    "user_request": user_request
                 },
                 error_message=research_result.error_message
             )
@@ -837,16 +847,36 @@ class ParentAgent(BaseAgent):
                     "message": "Starting 3D model generation"
                 })
             
-            # Get research output
-            research_output = input_data.get("research_output", {})
+            # Get research output - handle TaskResult object
+            if hasattr(input_data, 'data'):
+                # input_data is a TaskResult object
+                research_output = input_data.data
+                workflow_id = 'unknown'
+                user_request = ""
+                metadata = {}
+            elif isinstance(input_data, dict):
+                research_output = input_data.get("research_output", input_data)
+                workflow_id = input_data.get('workflow_id', 'unknown')
+                user_request = input_data.get("user_request", "")
+                metadata = input_data.get("metadata", {})
+            else:
+                # Fallback
+                research_output = {}
+                workflow_id = 'unknown'
+                user_request = str(input_data)
+                metadata = {}
+                
             design_spec = research_output.get("design_specification", {})
             
             # Extract and format specifications for CAD agent
             object_specs = design_spec.get("object_specifications", {})
             geometry = object_specs.get("geometry", {})
+            primitives = object_specs.get("primitives", [])
             
             # Convert dimensions to the format CAD agent expects
             cad_dimensions = {}
+            
+            # First check for dimensions in geometry section
             if "dimensions" in geometry:
                 dims = geometry["dimensions"] 
                 # Handle both formats: {x,y,z} or {length,width,height}
@@ -854,24 +884,44 @@ class ParentAgent(BaseAgent):
                     cad_dimensions = {"x": dims["x"], "y": dims["y"], "z": dims["z"]}
                 elif "length" in dims and "width" in dims and "height" in dims:
                     cad_dimensions = {"x": dims["length"], "y": dims["width"], "z": dims["height"]}
+            
+            # If no dimensions found, check primitives section
+            if not cad_dimensions and primitives:
+                for primitive in primitives:
+                    if primitive.get("type") == "box":
+                        dims = primitive.get("dimensions", {})
+                        if "length" in dims and "width" in dims and "height" in dims:
+                            cad_dimensions = {"x": dims["length"], "y": dims["width"], "z": dims["height"]}
+                            break
                     
+            # Fallback to default dimensions for cube if still empty
+            if not cad_dimensions:
+                cad_dimensions = {"x": 20, "y": 20, "z": 20}  # 2cm cube default
+            # Determine the shape type
+            shape_type = geometry.get("primitive_type", "cube")
+            if not shape_type and primitives:
+                for primitive in primitives:
+                    if primitive.get("type") == "box":
+                        shape_type = "cube"
+                        break
+                        
             cad_specifications = {
                 "geometry": {
                     "type": geometry.get("type", "primitive"),
-                    "base_shape": geometry.get("primitive_type", "cube"),
+                    "base_shape": shape_type,
                     "dimensions": cad_dimensions
                 }
             }
             
             # Execute CAD agent
             cad_result = await self._cad_agent.execute_task({
-                "task_id": f"cad_{input_data.get('workflow_id', 'unknown')}",
+                "task_id": f"cad_{workflow_id}",
                 "operation": "create_primitive",
                 "specifications": cad_specifications,
-                "requirements": {"user_request": input_data.get("user_request", "")},
+                "requirements": {"user_request": user_request},
                 "format_preference": "stl",
                 "quality_level": "standard",
-                "metadata": input_data.get("metadata", {})
+                "metadata": metadata
             })
             
             if progress_callback:
@@ -915,15 +965,28 @@ class ParentAgent(BaseAgent):
                     "message": "Starting G-code generation"
                 })
             
-            # Get CAD output
-            cad_output = input_data.get("cad_output", {})
+            # Get CAD output - handle TaskResult object
+            if hasattr(input_data, 'data'):
+                # input_data is a TaskResult object
+                cad_output = input_data.data
+                workflow_id = 'unknown'
+                metadata = {}
+            elif isinstance(input_data, dict):
+                cad_output = input_data.get("cad_output", input_data)
+                workflow_id = input_data.get('workflow_id', 'unknown')
+                metadata = input_data.get("metadata", {})
+            else:
+                # Fallback
+                cad_output = {}
+                workflow_id = 'unknown'
+                metadata = {}
+                
             stl_file = cad_output.get("stl_file")
             
             if not stl_file:
                 raise ValueError("No STL file available from CAD phase")
             
             # Get printer profile from metadata
-            metadata = input_data.get("metadata", {})
             printer_profile = metadata.get("printer_profile", "ender3_pla")
             quality_level = metadata.get("quality_level", "standard")
             material_type = metadata.get("material_type", "PLA")
@@ -986,9 +1049,32 @@ class ParentAgent(BaseAgent):
                     "message": "Starting 3D printing"
                 })
             
-            # Get slicer output
-            slicing_output = input_data.get("slicing_output", {})
-            gcode_file = slicing_output.get("gcode_file")
+            # Get slicer output - handle TaskResult object
+            if hasattr(input_data, 'data'):
+                # input_data is a TaskResult object
+                slicing_output = input_data.data
+                workflow_id = 'unknown'
+                metadata = {}
+            elif isinstance(input_data, dict):
+                slicing_output = input_data.get("slicing_output", input_data)
+                workflow_id = input_data.get('workflow_id', 'unknown')
+                metadata = input_data.get("metadata", {})
+            else:
+                # Fallback
+                slicing_output = {}
+                workflow_id = 'unknown'
+                metadata = {}
+                
+            gcode_file = None
+            if hasattr(slicing_output, 'get'):
+                # slicing_output is a dict
+                gcode_file = slicing_output.get("gcode_file")
+            elif hasattr(slicing_output, 'data'):
+                # slicing_output is a TaskResult object
+                gcode_file = slicing_output.data.get("gcode_file_path") if hasattr(slicing_output.data, 'get') else None
+            else:
+                # Try to extract from object attributes
+                gcode_file = getattr(slicing_output, 'gcode_file', None) or getattr(slicing_output, 'gcode_file_path', None)
             
             if not gcode_file:
                 raise ValueError("No G-code file available from slicing phase")
@@ -1004,13 +1090,13 @@ class ParentAgent(BaseAgent):
             
             # Execute printing
             print_result = await self._printer_agent.execute_task({
-                "task_id": f"print_{input_data.get('workflow_id', 'unknown')}",
+                "task_id": f"print_{workflow_id}",
                 "operation": "stream_gcode",
                 "specifications": {
                     "gcode_file": gcode_file,
                     "progress_callback": streaming_progress_callback
                 },
-                "metadata": input_data.get("metadata", {})
+                "metadata": metadata
             })
             
             if progress_callback:
@@ -1021,12 +1107,12 @@ class ParentAgent(BaseAgent):
                 })
             
             return TaskResult(
-                success=print_result.get("success", False),
+                success=print_result.success if hasattr(print_result, 'success') else print_result.get("success", False),
                 data={
-                    "print_result": print_result,
+                    "print_result": print_result.data if hasattr(print_result, 'data') else print_result,
                     "gcode_file": gcode_file
                 },
-                error_message=print_result.get("error_message")
+                error_message=print_result.error_message if hasattr(print_result, 'error_message') else print_result.get("error_message")
             )
             
         except Exception as e:

@@ -1,64 +1,178 @@
 {
-    "name": "AI Agent 3D Print System",
-    "short_name": "AI 3D Print",
-    "description": "Submit 3D print requests and track progress in real-time using AI agents",
-    "start_url": "/",
-    "display": "standalone",
-    "background_color": "#ffffff",
-    "theme_color": "#2563eb",
-    "orientation": "portrait",
-    "scope": "/",
-    "icons": [
+  "name": "AI Agent 3D Print System",
+  "short_name": "AI 3D Print",
+  "description": "AI-powered 3D printing workflow system",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#2563eb",
+  "background_color": "#ffffff",
+  "scope": "/",
+  "lang": "en-US",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "/web/assets/icons/icon-72.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/web/assets/icons/icon-96.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/web/assets/icons/icon-128.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/web/assets/icons/icon-144.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/web/assets/icons/icon-152.png",
+      "sizes": "152x152",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/web/assets/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/web/assets/icons/icon-384.png",
+      "sizes": "384x384",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/web/assets/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": [
+    "productivity",
+    "utilities",
+    "technology"
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false,
+  "shortcuts": [
+    {
+      "name": "Quick Print",
+      "short_name": "Print",
+      "description": "Start a new 3D print job",
+      "url": "/?action=quick-print",
+      "icons": [
         {
-            "src": "assets/icons/icon-72.png",
-            "sizes": "72x72",
-            "type": "image/png",
-            "purpose": "any maskable"
-        },
-        {
-            "src": "assets/icons/icon-96.png",
-            "sizes": "96x96",
-            "type": "image/png",
-            "purpose": "any maskable"
-        },
-        {
-            "src": "assets/icons/icon-128.png",
-            "sizes": "128x128",
-            "type": "image/png",
-            "purpose": "any maskable"
-        },
-        {
-            "src": "assets/icons/icon-144.png",
-            "sizes": "144x144",
-            "type": "image/png",
-            "purpose": "any maskable"
-        },
-        {
-            "src": "assets/icons/icon-152.png",
-            "sizes": "152x152",
-            "type": "image/png",
-            "purpose": "any maskable"
-        },
-        {
-            "src": "assets/icons/icon-192.png",
-            "sizes": "192x192",
-            "type": "image/png",
-            "purpose": "any maskable"
-        },
-        {
-            "src": "assets/icons/icon-384.png",
-            "sizes": "384x384",
-            "type": "image/png",
-            "purpose": "any maskable"
-        },
-        {
-            "src": "assets/icons/icon-512.png",
-            "sizes": "512x512",
-            "type": "image/png",
-            "purpose": "any maskable"
+          "src": "/web/assets/icons/shortcut-print.png",
+          "sizes": "96x96"
         }
-    ],
-    "categories": ["productivity", "utilities"],
-    "lang": "en-US",
-    "dir": "ltr"
+      ]
+    },
+    {
+      "name": "View History",
+      "short_name": "History",
+      "description": "View print history",
+      "url": "/?action=history",
+      "icons": [
+        {
+          "src": "/web/assets/icons/shortcut-history.png",
+          "sizes": "96x96"
+        }
+      ]
+    },
+    {
+      "name": "System Status",
+      "short_name": "Status",
+      "description": "Check system status",
+      "url": "/?action=status",
+      "icons": [
+        {
+          "src": "/web/assets/icons/shortcut-status.png",
+          "sizes": "96x96"
+        }
+      ]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/web/assets/screenshots/desktop-main.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "platform": "wide"
+    },
+    {
+      "src": "/web/assets/screenshots/mobile-main.png",
+      "sizes": "375x812",
+      "type": "image/png",
+      "platform": "narrow"
+    }
+  ],
+  "display_override": [
+    "window-controls-overlay",
+    "standalone",
+    "minimal-ui"
+  ],
+  "file_handlers": [
+    {
+      "action": "/upload",
+      "accept": {
+        "model/gltf-binary": [
+          ".glb"
+        ],
+        "model/gltf+json": [
+          ".gltf"
+        ],
+        "model/stl": [
+          ".stl"
+        ],
+        "model/obj": [
+          ".obj"
+        ],
+        "application/sla": [
+          ".3mf"
+        ]
+      }
+    }
+  ],
+  "protocol_handlers": [
+    {
+      "protocol": "web+3dprint",
+      "url": "/print?url=%s"
+    }
+  ],
+  "share_target": {
+    "action": "/share",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url",
+      "files": [
+        {
+          "name": "model",
+          "accept": [
+            "model/*",
+            ".stl",
+            ".obj",
+            ".gltf",
+            ".glb",
+            ".3mf"
+          ]
+        }
+      ]
+    }
+  }
 }

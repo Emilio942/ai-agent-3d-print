@@ -1,0 +1,100 @@
+# AI Model Configuration for Multi-AI Backend Support
+# Add your API keys and model preferences here
+
+ai_models:
+  # Default model to use (fallback: spacy_transformers)
+  default_model: "spacy_transformers"
+  
+  # Model configurations
+  models:
+    # Current spaCy + transformers (always available)
+    spacy_transformers:
+      enabled: true
+      # No additional configuration needed
+    
+    # OpenAI GPT models
+    openai_gpt:
+      enabled: false  # Set to true when API key is configured
+      api_key: ""  # Set your OpenAI API key here or use OPENAI_API_KEY env var
+      api_base: ""  # Optional: custom API base URL
+      model_name: "gpt-3.5-turbo"  # or "gpt-4", "gpt-4-turbo-preview"
+      max_tokens: 1000
+      temperature: 0.7
+      timeout: 30
+    
+    # Anthropic Claude models
+    anthropic_claude:
+      enabled: false  # Set to true when API key is configured
+      api_key: ""  # Set your Anthropic API key here or use ANTHROPIC_API_KEY env var
+      api_base: ""  # Optional: custom API base URL
+      model_name: "claude-3-sonnet-20240229"  # or "claude-3-opus-20240229", "claude-3-haiku-20240307"
+      max_tokens: 1000
+      temperature: 0.7
+      timeout: 30
+    
+    # Local Llama models (requires Ollama or similar)
+    local_llama:
+      enabled: false  # Set to true when local server is running
+      api_base: "http://localhost:11434"  # Ollama default
+      model_name: "llama2"  # or "llama2:13b", "llama2:70b", "codellama"
+      max_tokens: 1000
+      temperature: 0.7
+      timeout: 60  # Longer timeout for local models
+    
+    # Local Mistral models (requires Ollama or similar)
+    local_mistral:
+      enabled: false  # Set to true when local server is running
+      api_base: "http://localhost:11434"  # Ollama default
+      model_name: "mistral"  # or "mistral:7b", "mixtral"
+      max_tokens: 1000
+      temperature: 0.7
+      timeout: 60  # Longer timeout for local models
+
+  # Fallback configuration
+  fallback:
+    # Order to try models if primary fails
+    order:
+      - "spacy_transformers"
+      - "openai_gpt"
+      - "anthropic_claude"
+      - "local_llama"
+      - "local_mistral"
+    
+    # Minimum confidence threshold
+    min_confidence: 0.3
+    
+    # Enable automatic fallback
+    auto_fallback: true
+
+  # Performance settings
+  performance:
+    # Cache AI responses for better performance
+    enable_caching: true
+    cache_duration_hours: 24
+    
+    # Parallel model testing (for validation)
+    enable_parallel_validation: false
+    
+    # Timeout for model validation
+    validation_timeout: 10
+
+# Environment variable mappings (optional, for security)
+# You can set these environment variables instead of hardcoding API keys
+environment_variables:
+  openai_api_key: "OPENAI_API_KEY"
+  anthropic_api_key: "ANTHROPIC_API_KEY"
+  local_api_base: "LOCAL_AI_API_BASE"
+
+# Usage analytics (optional)
+analytics:
+  # Track model performance and usage
+  enable_metrics: true
+  
+  # Log successful vs failed attempts per model
+  track_success_rates: true
+  
+  # Track response times
+  track_performance: true
+  
+  # Track confidence distributions
+  track_confidence: true
