@@ -19,14 +19,22 @@ from datetime import datetime
 
 # CAD Libraries
 try:
-    import FreeCAD
-    import Part
-    import Draft
-    import Mesh
+    import FreeCAD  # type: ignore
+    import Part  # type: ignore
+    import Draft  # type: ignore
+    import Mesh  # type: ignore
     FREECAD_AVAILABLE = True
 except ImportError:
     FREECAD_AVAILABLE = False
-    print("Warning: FreeCAD not available, using fallback to trimesh")
+    # Stub FreeCAD modules when unavailable
+    FreeCAD = None  # type: ignore
+    Part = None  # type: ignore
+    Draft = None  # type: ignore
+    Mesh = None  # type: ignore
+    # Only show warning in verbose mode
+    import os
+    if os.getenv('VERBOSE_MODE') == '1' or '--verbose' in ' '.join(__import__('sys').argv):
+        print("Warning: FreeCAD not available, using fallback to trimesh")
 
 import trimesh
 import numpy as np
@@ -150,6 +158,8 @@ class CADAgent(BaseAgent):
             
             if operation == 'create_primitive':
                 result = await self._create_primitive_task(cad_input)
+            elif operation == 'create_from_image':
+                result = await self._create_from_image_task(task_data)
             elif operation == 'create_from_contours':
                 result = await self._create_from_contours_task(task_data)
             elif operation == 'boolean_operation':
@@ -247,7 +257,8 @@ class CADAgent(BaseAgent):
                 self.doc.removeObject(mesh_obj.Name)
         
         return {
-            'model_file_path': mesh_file_path,
+            'model_file': mesh_file_path,
+            'stl_file': mesh_file_path,  # For backward compatibility
             'model_format': 'stl',
             'dimensions': dimensions,
             'volume': volume,
@@ -263,6 +274,123 @@ class CADAgent(BaseAgent):
             }
         }
 
+    async def _create_from_image_task(self, task_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create 3D model from image using a simple grayscale heightmap approach."""
+        import os, tempfile, numpy as np, trimesh
+        from PIL import Image
+        import cv2
+        
+        # Bildpfad extrahieren
+        image_path = task_data.get('image_path')
+        if not image_path:
+            specs = task_data.get('specifications', {})
+            image_path = specs.get('image_path')
+        if not image_path or not os.path.exists(image_path):
+            raise ValidationError(f"Image file not found: {image_path}")
+        
+        self.logger.info(f"🖼️ Starte Bild-zu-3D-Konvertierung: {image_path}")
+        
+        # Bild laden
+        cv_image = cv2.imread(image_path)
+        if cv_image is None:
+            raise ValidationError(f"Could not load image: {image_path}")
+        gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
+        
+        # Heightmap erzeugen
+        height_scale = float(task_data.get('height_scale', 5.0))
+        base_thickness = float(task_data.get('base_thickness', 2.0))
+        height_map = (gray.astype(np.float32) / 255.0) * height_scale + base_thickness
+        
+        # Größe begrenzen
+        max_size = 128
+        h, w = height_map.shape
+        if max(h, w) > max_size:
+            scale = max_size / max(h, w)
+            height_map = cv2.resize(height_map, (int(w*scale), int(h*scale)))
+            h, w = height_map.shape
+        
+        x = np.linspace(0, w-1, w) * 0.5
+        y = np.linspace(0, h-1, h) * 0.5
+        xx, yy = np.meshgrid(x, y)
+        vertices = np.column_stack((xx.flatten(), yy.flatten(), height_map.flatten()))
+        
+        faces = []
+        for i in range(h-1):
+            for j in range(w-1):
+                v0 = i * w + j
+                v1 = i * w + (j + 1)
+                v2 = (i + 1) * w + j
+                v3 = (i + 1) * w + (j + 1)
+                faces.append([v0, v1, v2])
+                faces.append([v1, v3, v2])
+        
+        faces = np.array(faces)
+        mesh = trimesh.Trimesh(vertices=vertices, faces=faces)
+        mesh.remove_degenerate_faces()
+        mesh.remove_duplicate_faces()
+        mesh.remove_unreferenced_vertices()
+        
+        # Base hinzufügen
+        bounds = mesh.bounds
+        base_z = bounds[0][2] - 0.1
+        base_vertices = [
+            [bounds[0][0], bounds[0][1], base_z],
+            [bounds[1][0], bounds[0][1], base_z],
+            [bounds[1][0], bounds[1][1], base_z],
+            [bounds[0][0], bounds[1][1], base_z],
+        ]
+        base_start_idx = len(mesh.vertices)
+        all_vertices = np.vstack([mesh.vertices, base_vertices])
+        base_faces = [
+            [base_start_idx, base_start_idx + 1, base_start_idx + 2],
+            [base_start_idx, base_start_idx + 2, base_start_idx + 3]
+        ]
+        all_faces = np.vstack([mesh.faces, base_faces])
+        final_mesh = trimesh.Trimesh(vertices=all_vertices, faces=all_faces)
+        final_mesh.remove_degenerate_faces()
+        final_mesh.remove_duplicate_faces()
+        final_mesh.remove_unreferenced_vertices()
+        
+        volume = float(final_mesh.volume)
+        material_volume_cm3 = volume / 1000
+        material_weight_g = material_volume_cm3 * self.material_density
+        
+        # Generate temporary file path for the mesh
+        temp_file = tempfile.NamedTemporaryFile(suffix='.stl', delete=False)
+        mesh_file_path = temp_file.name
+        temp_file.close()
+        
+        # Export mesh to STL
+        final_mesh.export(mesh_file_path)
+        
+        self.logger.info(f"✅ Bild-zu-3D abgeschlossen: {len(final_mesh.vertices)} Vertices, {len(final_mesh.faces)} Faces")
+        
+        return {
+            'model_file': mesh_file_path,
+            'stl_file': mesh_file_path,  # For backward compatibility
+            'geometry_type': 'image_conversion',
+            'source_image': image_path,
+            'dimensions': {
+                'width': float(bounds[1][0] - bounds[0][0]),
+                'length': float(bounds[1][1] - bounds[0][1]),
+                'height': float(bounds[1][2] - bounds[0][2])
+            },
+            'volume_mm3': volume,
+            'vertices': len(final_mesh.vertices),
+            'faces': len(final_mesh.faces),
+            'printability_score': 0.8,
+            'material_usage': {
+                'volume_cm3': round(material_volume_cm3, 2),
+                'weight_g': round(material_weight_g, 2),
+                'material_type': 'PLA'
+            },
+            'mesh_info': {
+                'is_watertight': final_mesh.is_watertight,
+                'surface_area': float(final_mesh.area),
+                'bounds': bounds.tolist()
+            }
+        }
+    
     async def _create_from_contours_task(self, task_data: Dict[str, Any]) -> Dict[str, Any]:
         """Create 3D model from image contours."""
         try:
