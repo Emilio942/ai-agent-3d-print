@@ -11,18 +11,34 @@ import time
 import asyncio
 from enum import Enum
 
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
-from logger import AgentLogger, get_logger
-from exceptions import (
-    AI3DPrintError, 
-    ValidationError, 
-    SystemResourceError,
-    get_error_handler,
-    create_error_response
-)
+try:  # Package-relative imports when available
+    from .logger import AgentLogger, get_logger
+    from .exceptions import (
+        AI3DPrintError, 
+        ValidationError, 
+        SystemResourceError,
+        get_error_handler,
+        create_error_response
+    )
+except ImportError:  # pragma: no cover - legacy fallback for direct module execution
+    try:
+        from core.logger import AgentLogger, get_logger  # type: ignore
+        from core.exceptions import (  # type: ignore
+            AI3DPrintError,
+            ValidationError,
+            SystemResourceError,
+            get_error_handler,
+            create_error_response
+        )
+    except ImportError:  # Final fallback when executed from within core package directly
+        from logger import AgentLogger, get_logger  # type: ignore
+        from exceptions import (  # type: ignore
+            AI3DPrintError,
+            ValidationError,
+            SystemResourceError,
+            get_error_handler,
+            create_error_response
+        )
 
 
 class TaskStatus(Enum):
@@ -71,6 +87,9 @@ class BaseAgent(ABC):
         self.agent_type = self.__class__.__name__
         self.config = config or {}
         self.logger = logger or get_logger(agent_name)
+
+        # Backward compatibility: expose agent_id attribute used across tests
+        self.agent_id = agent_name
         
         # Task execution tracking
         self.current_task_id: Optional[str] = None

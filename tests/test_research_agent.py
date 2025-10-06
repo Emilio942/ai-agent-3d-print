@@ -230,6 +230,14 @@ class TestResearchAgent:
             output_data = result.data
             assert "requirements" in output_data
             assert "object_specifications" in output_data
+
+    def test_execute_task_accepts_schema_input(self, research_agent, sample_input):
+        """ResearchAgent should handle ResearchAgentInput models transparently."""
+        result = research_agent.execute_task(sample_input)
+
+        assert isinstance(result, TaskResult)
+        assert result.task_id is not None
+        assert result.metadata.get("task_id") == result.task_id
     
     def test_execute_task_validation_error(self, research_agent):
         """Test task execution with validation errors."""

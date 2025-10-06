@@ -6,10 +6,12 @@ Quick test for real printer detection
 import asyncio
 import sys
 import os
+import pytest
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from multi_printer_support import MultiPrinterDetector
 
+@pytest.mark.asyncio
 async def test_real_printer_detection():
     print("🔧 Testing REAL Printer Detection (Fast Version)")
     print("=" * 50)

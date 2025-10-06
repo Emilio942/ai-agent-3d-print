@@ -1,0 +1,38 @@
+{
+  "primitive_cube": {
+    "stl": "data/visual_proofs/primitive_cube.stl",
+    "png": "data/visual_proofs/primitive_cube.png",
+    "volume_mm3": 6000.0
+  },
+  "primitive_cylinder": {
+    "stl": "data/visual_proofs/primitive_cylinder.stl",
+    "png": "data/visual_proofs/primitive_cylinder.png",
+    "volume_mm3": 7853.981633974483
+  },
+  "image_heightmap": {
+    "stl": "data/visual_proofs/image_heightmap.stl",
+    "png": "data/visual_proofs/image_heightmap.png",
+    "faces": 32260,
+    "vertices": 16388,
+    "source_image": "data/visual_proofs/test_input_generated.png"
+  },
+  "mandelbrot_heightmap": {
+    "stl": "data/visual_proofs/mandelbrot_heightmap.stl",
+    "png": "data/visual_proofs/mandelbrot_heightmap.png",
+    "faces": 54628,
+    "vertices": 27652,
+    "material": "PETG",
+    "safety": {
+      "min_wall_thickness_mm": 0.4,
+      "base_thickness_mm": 2.0,
+      "enforce_safety": true,
+      "pixel_size_mm": 0.3
+    }
+  },
+  "contours_extrusion": {
+    "stl": "data/visual_proofs/contours_extrusion.stl",
+    "png": "data/visual_proofs/contours_extrusion.png",
+    "volume_mm3": 7000.0,
+    "contours_used": 2
+  }
+}

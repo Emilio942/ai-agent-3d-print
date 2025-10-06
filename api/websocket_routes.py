@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 from typing import Dict, Any
 import asyncio
 import json
+from datetime import datetime
 
 import sys
 from pathlib import Path
@@ -57,6 +58,74 @@ async def websocket_endpoint(websocket: WebSocket):
     
     finally:
         # Cleanup on disconnect
+        if connection:
+            await websocket_manager.disconnect(connection.client_id)
+
+
+@router.websocket("/progress")
+async def progress_websocket_endpoint(websocket: WebSocket):
+    """WebSocket endpoint specifically for progress updates"""
+    connection = None
+    try:
+        # Accept the connection
+        connection = await websocket_manager.connect(websocket)
+        client_id = connection.client_id
+        
+        logger.info(f"🔌 Progress WebSocket client connected: {client_id}")
+        
+        # Send initial connection confirmation
+        await connection.send_message(MessageType.SYSTEM_ALERT, {
+            "type": "connection_established",
+            "message": "Progress WebSocket connected successfully",
+            "client_id": client_id
+        })
+        
+        # Message handling loop for progress updates
+        while True:
+            try:
+                # Receive message from client (mostly keep-alive pings)
+                message = await connection.receive_message()
+                
+                # Handle specific progress-related messages
+                if message and isinstance(message, dict):
+                    if message.get("type") == "subscribe_job":
+                        job_id = message.get("job_id")
+                        if job_id:
+                            # Subscribe client to specific job progress
+                            await connection.send_message(MessageType.WORKFLOW_PROGRESS, {
+                                "job_id": job_id,
+                                "subscribed": True,
+                                "message": f"Subscribed to job {job_id} progress updates"
+                            })
+                    
+                    elif message.get("type") == "ping":
+                        # Respond to ping with pong
+                        await connection.send_message(MessageType.SYSTEM_ALERT, {
+                            "type": "pong",
+                            "timestamp": datetime.now().isoformat()
+                        })
+                
+            except WebSocketDisconnect:
+                logger.info(f"🔌 Progress WebSocket client disconnected: {client_id}")
+                break
+            except Exception as e:
+                logger.error(f"❌ Error handling progress WebSocket message for {client_id}: {e}")
+                await connection.send_message(MessageType.SYSTEM_ALERT, {
+                    "type": "error",
+                    "message": f"Error processing message: {str(e)}"
+                })
+                
+    except Exception as e:
+        logger.error(f"❌ Progress WebSocket connection error: {e}")
+        if connection:
+            try:
+                await connection.send_message(MessageType.SYSTEM_ALERT, {
+                    "type": "connection_error",
+                    "message": f"Connection error: {str(e)}"
+                })
+            except:
+                pass
+    finally:
         if connection:
             await websocket_manager.disconnect(connection.client_id)
 

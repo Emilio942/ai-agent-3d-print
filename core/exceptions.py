@@ -625,16 +625,22 @@ def create_error_response(error: Exception, include_details: bool = False) -> Di
     Returns:
         Standardized error response dictionary
     """
-    if isinstance(error, AI3DPrintError):
+    has_custom_attrs = isinstance(error, AI3DPrintError) or (
+        hasattr(error, "error_code") and hasattr(error, "message")
+    )
+
+    if has_custom_attrs:
+        error_code = getattr(error, "error_code", "UNKNOWN_ERROR")
+        message = getattr(error, "message", str(error))
         response = {
             "error": True,
             "error_type": error.__class__.__name__,
-            "error_code": error.error_code,
-            "message": error.message
+            "error_code": error_code,
+            "message": message
         }
-        
-        if include_details:
-            response["details"] = error.details
+
+        if include_details and hasattr(error, "details"):
+            response["details"] = getattr(error, "details")
     else:
         response = {
             "error": True,

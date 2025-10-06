@@ -74,6 +74,14 @@ Thumbs.db
 # Log files
 logs/*.log
 logs/*.log.*
+logs/**/*.log
+logs/**/*.log.*
+
+# Backup artifacts
+*.backup
+*.backup_*
+*.bak
+*.orig
 
 # Temporary data files
 data/temp/*

@@ -230,28 +230,59 @@ class PrintHistory:
     
     def get_recent_prints(self, limit: int = 10) -> List[Dict[str, Any]]:
         """Get recent prints."""
-        return sorted(self.history, key=lambda x: x["timestamp"], reverse=True)[:limit]
+        if not self.history:
+            return []
+        
+        # Safely sort by timestamp, handling missing keys
+        def get_timestamp(item):
+            try:
+                return item.get("timestamp", "")
+            except (AttributeError, KeyError):
+                return ""
+        
+        return sorted(self.history, key=get_timestamp, reverse=True)[:limit]
     
     def get_success_rate(self, days: int = 30) -> float:
         """Calculate success rate over the last N days."""
+        if not self.history:
+            return 0.0
+            
         cutoff = datetime.now() - timedelta(days=days)
-        recent_prints = [
-            p for p in self.history 
-            if datetime.fromisoformat(p["timestamp"]) > cutoff
-        ]
+        recent_prints = []
+        
+        for p in self.history:
+            try:
+                timestamp_str = p.get("timestamp", "")
+                if timestamp_str:
+                    timestamp = datetime.fromisoformat(timestamp_str)
+                    if timestamp > cutoff:
+                        recent_prints.append(p)
+            except (ValueError, KeyError, AttributeError):
+                continue
         
         if not recent_prints:
             return 0.0
         
-        successful = sum(1 for p in recent_prints if p["success"])
+        successful = sum(1 for p in recent_prints if p.get("success", False))
         return (successful / len(recent_prints)) * 100
     
     def get_popular_requests(self, limit: int = 5) -> List[Dict[str, Any]]:
         """Get most popular print requests."""
+        if not self.history:
+            return []
+            
         request_counts = {}
         for print_job in self.history:
-            request = print_job["request"].lower()
-            request_counts[request] = request_counts.get(request, 0) + 1
+            try:
+                request = print_job.get("request", "Unknown")
+                if request and request != "Unknown":
+                    request_lower = request.lower()
+                    request_counts[request_lower] = request_counts.get(request_lower, 0) + 1
+            except (AttributeError, KeyError, TypeError):
+                continue
+        
+        if not request_counts:
+            return []
         
         popular = sorted(request_counts.items(), key=lambda x: x[1], reverse=True)[:limit]
         return [{"request": req, "count": count} for req, count in popular]

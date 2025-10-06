@@ -644,7 +644,7 @@ async def main():
 
 if __name__ == "__main__":
     print("🚀 AI Agent 3D Print System")
-    print("Task 5.1: Complete Workflow Implementation")
-    print("=" * 50)
+    print("Advanced AI-Powered 3D Printing Orchestration Platform")
+    print("=" * 58)
     
     asyncio.run(main())

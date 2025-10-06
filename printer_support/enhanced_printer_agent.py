@@ -10,7 +10,7 @@ import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from multi_printer_support import MultiPrinterDetector, EnhancedPrinterCommunicator
-from printer_emulator import PrinterEmulatorManager, EmulatedPrinterType
+from printer_support.printer_emulator import PrinterEmulatorManager, EmulatedPrinterType
 
 class EnhancedPrinterAgent:
     """Enhanced printer agent with multi-printer support."""

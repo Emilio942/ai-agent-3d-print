@@ -1480,42 +1480,4 @@ class ImageProcessingAgent(BaseAgent):
             self.logger.error(f"Fallback contour extraction failed: {e}")
             return []
     
-    async def execute_task(self, task_data: Dict[str, Any]) -> Any:
-        """
-        Execute image processing task.
-        
-        Args:
-            task_data: Dictionary containing task parameters
-            
-        Returns:
-            Task execution result
-        """
-        try:
-            operation = task_data.get('operation', 'process_image')
-            
-            if operation == 'process_image':
-                image_data = task_data.get('image_data')
-                image_filename = task_data.get('image_filename', 'image.png')
-                processing_params = task_data.get('processing_params', {})
-                
-                if not image_data:
-                    raise ValidationError("No image data provided")
-                
-                result = await self.process_image_to_3d(image_data, image_filename, processing_params)
-                return result
-                
-            elif operation == 'validate_image':
-                image_data = task_data.get('image_data')
-                image_filename = task_data.get('image_filename', 'image.png')
-                
-                if not image_data:
-                    raise ValidationError("No image data provided")
-                
-                return self.validate_image(image_data, image_filename)
-                
-            else:
-                raise ValidationError(f"Unknown image processing operation: {operation}")
-                
-        except Exception as e:
-            self.logger.error(f"Image processing task failed: {e}")
-            raise
+    # Note: Duplicate execute_task method removed - already defined above at line 1171

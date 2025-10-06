@@ -152,6 +152,31 @@ class SlicerAgent(BaseAgent):
     def _init_predefined_profiles(self) -> None:
         """Initialize predefined slicer profiles for common printer/material combinations."""
         predefined_profiles = {
+            'cat_high_detail': {
+                'printer': 'ender3',
+                'material': 'PLA',
+                'quality': 'fine',
+                'layer_height': 0.12,
+                'infill_percentage': 12,
+                'print_speed': 35,
+                'nozzle_diameter': 0.4,
+                'bed_temperature': 60,
+                'hotend_temperature': 205,
+                'supports': True,
+                # Place seam toward the back to hide on cat's spine
+                'seam_position': 'back',
+                # Keep retractions conservative to avoid stringing on ears
+                'retraction_distance': 6.0,
+                'retraction_speed': 25,
+                # Advanced: smoother top layers and conservative accelerations
+                'monotonic_top_layers': True,
+                'top_solid_layers': 6,
+                'bottom_solid_layers': 6,
+                'accel_perimeter': 800,   # mm/s^2
+                'accel_infill': 1200,     # mm/s^2
+                'supports_interface_layers': 2,
+                'build_volume': [220, 220, 250]
+            },
             'ender3_pla_draft': {
                 'printer': 'ender3',
                 'material': 'PLA',
@@ -524,54 +549,9 @@ class SlicerAgent(BaseAgent):
         output_file.close()
         
         try:
-            # Build comprehensive PrusaSlicer command
+            # Build comprehensive PrusaSlicer command via helper
             if 'prusa-slicer' in slicer_path:
-                cmd = [
-                    slicer_path,
-                    '--export-gcode',
-                    '--output', gcode_path,
-                ]
-                
-                # Add comprehensive settings based on effective_settings
-                if 'layer_height' in effective_settings:
-                    cmd.extend(['--layer-height', str(effective_settings['layer_height'])])
-                
-                if 'infill_percentage' in effective_settings:
-                    cmd.extend(['--fill-density', f"{effective_settings['infill_percentage']}%"])
-                
-                if 'print_speed' in effective_settings:
-                    cmd.extend(['--perimeter-speed', str(effective_settings['print_speed'])])
-                
-                # Temperature settings
-                if 'hotend_temperature' in effective_settings:
-                    cmd.extend(['--temperature', str(effective_settings['hotend_temperature'])])
-                    cmd.extend(['--first-layer-temperature', str(effective_settings['hotend_temperature'])])
-                
-                if 'bed_temperature' in effective_settings:
-                    cmd.extend(['--bed-temperature', str(effective_settings['bed_temperature'])])
-                    cmd.extend(['--first-layer-bed-temperature', str(effective_settings['bed_temperature'])])
-                
-                # Advanced settings
-                if 'supports' in effective_settings and effective_settings['supports']:
-                    cmd.extend(['--support-material'])
-                
-                if 'retraction_distance' in effective_settings:
-                    cmd.extend(['--retract-length', str(effective_settings['retraction_distance'])])
-                
-                # Quality-based layer height if not explicitly set
-                if 'layer_height' not in effective_settings and 'quality_preset' in effective_settings:
-                    quality_layer_heights = {
-                        'draft': 0.3,
-                        'standard': 0.2,
-                        'fine': 0.15,
-                        'ultra': 0.1
-                    }
-                    layer_height = quality_layer_heights.get(slicer_input.quality_preset, 0.2)
-                    cmd.extend(['--layer-height', str(layer_height)])
-                
-                # Add the input file at the end
-                cmd.append(slicer_input.model_file_path)
-                
+                cmd = self._build_prusaslicer_command(slicer_path, gcode_path, slicer_input, effective_settings)
             else:
                 raise SlicerExecutionError(f"Unsupported slicer: {slicer_path}")
             
@@ -901,6 +881,135 @@ class SlicerAgent(BaseAgent):
             }
         }
         return printer_settings.get(printer, printer_settings["ender3"])
+
+    def _build_prusaslicer_command(
+        self,
+        slicer_path: Union[str, Dict[str, Any]],
+        gcode_path: Optional[str] = None,
+        slicer_input: Optional[SlicerAgentInput] = None,
+        effective_settings: Optional[Dict[str, Any]] = None
+    ) -> List[str]:
+        """Build a robust PrusaSlicer CLI command.
+
+        Legacy support: earlier revisions accepted a single settings dictionary. To keep
+        older integrations working we detect that signature and map it onto the expanded
+        arguments used by the refactored slicing pipeline.
+        """
+        if isinstance(slicer_path, dict):  # Legacy call signature
+            settings = slicer_path
+            legacy_slicer_path = self.slicer_paths.get('prusaslicer') or 'prusaslicer'
+            legacy_input_file = settings.get('input_file') or settings.get('model_file_path')
+            if not legacy_input_file:
+                legacy_input_file = 'model.stl'
+            legacy_profile = settings.get('profile') or settings.get('printer_profile') or 'ender3_pla_standard'
+
+            slicer_input = SlicerAgentInput(
+                model_file_path=legacy_input_file,
+                printer_profile=legacy_profile,
+                material_type=settings.get('material_type', 'PLA'),
+                quality_preset=settings.get('quality_preset', settings.get('quality', 'standard')),
+                infill_percentage=settings.get('infill_percentage', settings.get('infill', 20)),
+                layer_height=settings.get('layer_height', 0.2),
+                print_speed=settings.get('print_speed', 50)
+            )
+
+            base_profile = self._get_profile_settings(slicer_input.printer_profile)
+            effective_settings = self._merge_settings(base_profile, slicer_input)
+            gcode_path = settings.get('output_file', 'output.gcode')
+            slicer_path = legacy_slicer_path
+
+        if slicer_input is None or effective_settings is None:
+            raise ValueError("slicer_input and effective_settings are required to build the command")
+        if not isinstance(slicer_path, str):
+            raise ValueError("slicer_path must resolve to a string path")
+        if gcode_path is None:
+            raise ValueError("gcode_path must be provided")
+
+        cmd = [
+            slicer_path,
+            '--export-gcode',
+            '--output', gcode_path,
+        ]
+
+        # Basic params
+        layer_height = effective_settings.get('layer_height')
+        if not layer_height and 'quality_preset' in effective_settings:
+            layer_height = {
+                'draft': 0.3,
+                'standard': 0.2,
+                'fine': 0.15,
+                'ultra': 0.1
+            }.get(slicer_input.quality_preset, 0.2)
+        if layer_height:
+            cmd += ['--layer-height', str(layer_height)]
+
+        infill = effective_settings.get('infill_percentage')
+        if infill is not None:
+            cmd += ['--fill-density', f'{infill}%']
+
+        speed = effective_settings.get('print_speed')
+        if speed is not None:
+            cmd += ['--perimeter-speed', str(speed)]
+
+        # Temperatures
+        hotend = effective_settings.get('hotend_temperature')
+        bed = effective_settings.get('bed_temperature')
+        if hotend is not None:
+            cmd += ['--temperature', str(hotend), '--first-layer-temperature', str(hotend)]
+        if bed is not None:
+            cmd += ['--bed-temperature', str(bed), '--first-layer-bed-temperature', str(bed)]
+
+        # Supports
+        if effective_settings.get('supports'):
+            cmd += ['--support-material']
+            if isinstance(effective_settings.get('supports_interface_layers'), int):
+                # Some versions accept ini only; try CLI if present, otherwise rely on config file
+                pass
+
+        # Retraction
+        if 'retraction_distance' in effective_settings:
+            cmd += ['--retract-length', str(effective_settings['retraction_distance'])]
+
+        # Seam position mapping
+        seam = effective_settings.get('seam_position')
+        if isinstance(seam, str):
+            if seam.lower() == 'back':
+                seam = 'rear'
+            cmd += ['--seam-position', str(seam)]
+
+        # Create a temporary config for advanced knobs
+        advanced_lines = []
+        if effective_settings.get('monotonic_top_layers') is True:
+            advanced_lines.append('monotonic_top_layers = 1')
+        if isinstance(effective_settings.get('top_solid_layers'), int):
+            advanced_lines.append(f"top_solid_layers = {effective_settings['top_solid_layers']}")
+        if isinstance(effective_settings.get('bottom_solid_layers'), int):
+            advanced_lines.append(f"bottom_solid_layers = {effective_settings['bottom_solid_layers']}")
+        if isinstance(effective_settings.get('accel_perimeter'), (int, float)):
+            advanced_lines.append(f"perimeter_acceleration = {int(effective_settings['accel_perimeter'])}")
+        if isinstance(effective_settings.get('accel_infill'), (int, float)):
+            advanced_lines.append(f"infill_acceleration = {int(effective_settings['accel_infill'])}")
+        if isinstance(effective_settings.get('supports_interface_layers'), int):
+            advanced_lines.append(f"support_interface_layers = {effective_settings['supports_interface_layers']}")
+
+        temp_ini_path = None
+        if advanced_lines:
+            ini = tempfile.NamedTemporaryFile('w', suffix='.ini', delete=False)
+            ini.write("\n".join(advanced_lines) + "\n")
+            ini.flush()
+            ini.close()
+            temp_ini_path = ini.name
+            # Keep for cleanup later
+            if not hasattr(self, '_temp_files'):
+                self._temp_files = []
+            self._temp_files.append(temp_ini_path)
+            cmd += ['--load', temp_ini_path]
+
+        # Input STL at end
+        cmd.append(slicer_input.model_file_path)
+
+        self.logger.debug(f"PrusaSlicer advanced config: {advanced_lines if advanced_lines else 'none'}")
+        return cmd
     
     def _get_quality_settings(self, quality: str) -> Dict[str, Any]:
         """Get quality-specific settings."""

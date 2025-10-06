@@ -21,7 +21,7 @@ Text Input → Research Agent → CAD Agent → Slicer Agent → Printer Agent �
 
 ## Technologie-Stack
 
-- **Sprache**: Python 3.9+
+- **Sprache**: Python 3.12
 - **Framework**: FastAPI + WebSocket
 - **CAD**: FreeCAD Python API
 - **Slicer**: PrusaSlicer CLI
@@ -32,14 +32,24 @@ Text Input → Research Agent → CAD Agent → Slicer Agent → Printer Agent �
 
 ```
 project/
-├── core/           # Basis-Klassen und gemeinsame Funktionen
-├── agents/         # Spezialisierte Agenten
-├── config/         # Konfigurationsdateien
-├── tests/          # Unit- und Integrationstests
-├── logs/           # Log-Dateien
-├── data/           # Temporäre Dateien (STL, G-Code)
-└── android/        # Android-App-Code (optional)
+├── agents/               # Spezialiserte Agenten (Research, CAD, Slicer, Printer, …)
+├── api/                  # FastAPI-Endpunkte und Middleware
+├── core/                 # Basis-Klassen, Schemas & Infrastruktur
+├── printer_support/      # Emulator, Multi-Printer-Support & Utilities
+├── tests/                # Unit-, Integrations- und Strukturtests
+│   ├── unit/             # Klassische Unittests
+│   ├── integration/      # Cross-Agent-Szenarien
+│   └── scripts/          # Frühere Demos (werden via Kompatibilitäts-Stubs aufgerufen)
+├── documentation/        # Fortschrittsberichte & Status-Dokumente
+├── development/          # Werkzeuge & Hilfsskripte für Dev-Umgebungen
+├── data/                 # Artefakte (z. B. STL, G-Code, Caches)
+├── scripts/              # Hilfsskripte & CLI-Utilities
+├── config/               # Konfigurationsdateien & YAML-Vorlagen
+├── logs/                 # Laufzeit- und Diagnose-Logs
+└── web/                  # Frontend-Assets
 ```
+
+> **Hinweis:** Im Projektwurzelverzeichnis verbleiben nur wenige "Compatibility Stubs" (z. B. `test_printer_functions.py` oder `printer_emulator.py`). Diese dünnen Adapter verweisen auf die neuen Module in `tests/` bzw. `printer_support/` und halten Legacy-Importpfade funktionsfähig.
 
 ## Installation
 
@@ -51,10 +61,10 @@ project/
 
 2. **Python-Umgebung einrichten**
    ```bash
-   python -m venv venv
-   source venv/bin/activate  # Linux/Mac
+   python -m venv .venv
+   source .venv/bin/activate  # Linux/Mac
    # oder
-   venv\Scripts\activate     # Windows
+   .venv\Scripts\activate     # Windows
    ```
 
 3. **Abhängigkeiten installieren**
@@ -111,6 +121,25 @@ curl -X POST "http://localhost:8000/api/print-request" \
      -d '{"text": "Erstelle einen 2cm Würfel aus PLA"}'
 ```
 
+### End-to-End Demo im Mock-Modus
+```bash
+python scripts/demos/cat_text_to_print_demo.py --prompt "Erstelle eine Katze"
+```
+Der Ablauf nutzt die vorhandenen Agenten vollständig lokal: Der Research Agent erstellt Anforderungen aus dem Textprompt, die Demo generiert nun automatisch eine stylisierte Katzen-Heightmap (`core/cat_heightmap.py`), der CAD Agent wandelt sie in ein STL um, der Slicer Agent erzeugt Mock-G-Code und der Printer Agent streamt den Job an den integrierten Mock-Drucker. Alle Artefakte landen unter `output/cat_demo/`.
+
+## Wartung & Aufräumen
+
+Laufzeit-Logs und Python-Cache-Dateien können das Repository leicht aufblähen. Mit dem Skript
+`scripts/cleanup_workspace.py` entfernst du diese Artefakte schnell:
+
+```bash
+python scripts/cleanup_workspace.py --dry-run  # zeigt, was gelöscht würde
+python scripts/cleanup_workspace.py            # löscht die Artefakte
+```
+
+Das Skript löscht standardmäßig `__pycache__/`, `*.pyc` und Log-Dateien aus `logs/`. Mit
+`--skip-logs` kannst du Log-Dateien behalten.
+
 ## Entwicklungsstand
 
 ### ✅ Abgeschlossene Aufgaben
@@ -129,14 +158,14 @@ curl -X POST "http://localhost:8000/api/print-request" \
 ## Tests ausführen
 
 ```bash
-# Alle Tests
-pytest
+# Ganze Test-Suite (empfohlen)
+pytest tests
 
 # Mit Coverage
 pytest --cov=core --cov=agents --cov-report=html
 
-# Spezifische Tests
-pytest tests/test_core/
+# Einzelne Dateien oder Ordner
+pytest tests/test_printer_agent.py
 ```
 
 ## Dokumentation

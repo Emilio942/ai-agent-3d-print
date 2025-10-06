@@ -7,13 +7,15 @@ Now supports OpenAI GPT, Anthropic Claude, local models, and the original
 spaCy+transformers pipeline with automatic fallback.
 """
 
+import asyncio
+import threading
 import re
 import json
 import spacy
 import time
 import hashlib
 import yaml
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Any, Optional, Tuple, Awaitable, Union
 from dataclasses import dataclass, field
 from enum import Enum
 import logging
@@ -34,6 +36,41 @@ from core.api_schemas import TaskResult, ResearchAgentInput, ResearchAgentOutput
 from core.logger import AgentLogger
 from core.exceptions import ValidationError, SystemResourceError
 from core.ai_models import AIModelManager, AIModelConfig, AIModelType
+
+
+def create_test_intent_request(
+    user_request: str,
+    analysis_depth: str = "standard",
+    *,
+    context: Optional[Dict[str, Any]] = None,
+    enable_web_research: bool = False,
+    metadata: Optional[Dict[str, Any]] = None
+) -> Dict[str, Any]:
+    """Utility helper used by test suites to build task payloads.
+
+    The helper mirrors the structure produced by higher-level orchestration
+    code so that unit and integration tests can exercise the full agent stack
+    without duplicating boilerplate dictionaries in every test case.
+    """
+
+    context_payload: Dict[str, Any] = {"source": "test_harness"}
+    if context:
+        context_payload.update(context)
+
+    payload: Dict[str, Any] = {
+        "task_id": f"test_{hashlib.md5(user_request.encode('utf-8')).hexdigest()[:8]}",
+        "task_type": "intent_analysis",
+        "user_request": user_request,
+        "context": context_payload,
+        "analysis_depth": analysis_depth,
+        "enable_web_research": enable_web_research,
+        "requested_at": datetime.utcnow().isoformat() + "Z"
+    }
+
+    if metadata:
+        payload["metadata"] = metadata
+
+    return payload
 
 
 class ConfidenceLevel(Enum):
@@ -99,8 +136,13 @@ class ResearchAgent(BaseAgent):
             self.ai_model_manager = AIModelManager()
             # Register default spaCy model
             from core.ai_models import AIModelConfig, AIModelType
-            spacy_config = AIModelConfig(model_type=AIModelType.SPACY_TRANSFORMERS)
-            self.ai_model_manager.register_model(AIModelType.SPACY_TRANSFORMERS, spacy_config)
+            if "spacy_transformers" not in self.ai_model_manager.models:
+                spacy_config = AIModelConfig(model_type=AIModelType.SPACY_TRANSFORMERS)
+                self.ai_model_manager.register_model(AIModelType.SPACY_TRANSFORMERS, spacy_config)
+            try:
+                self.ai_model_manager.set_preferred_model("spacy_transformers")
+            except ValueError:
+                pass
             self.logger.info("AI Model Manager initialized with spaCy model")
         except Exception as e:
             self.logger.error(f"Failed to initialize AI Model Manager: {str(e)}")
@@ -141,8 +183,9 @@ class ResearchAgent(BaseAgent):
             # Initialize rate limiter
             self.rate_limiter = RateLimiter(max_requests=10, time_window=60)
             
-            # Initialize DuckDuckGo search
-            self.ddgs = DDGS()
+            # Initialize DuckDuckGo search lazily to allow easier mocking
+            self.ddgs_factory = None
+            self.ddgs = None
             
             # Disable summarization pipeline due to SSL issues
             self.summarizer = None
@@ -154,6 +197,7 @@ class ResearchAgent(BaseAgent):
             self.logger.error(f"Failed to initialize web research: {str(e)}")
             self.cache = None
             self.rate_limiter = None
+            self.ddgs_factory = None
             self.ddgs = None
             self.summarizer = None
     
@@ -252,6 +296,23 @@ class ResearchAgent(BaseAgent):
                 ],
                 material_keywords=["abs", "petg", "strong", "durable"],
                 confidence_boost=0.15
+            ),
+            IntentPattern(
+                name="image_to_3d",
+                keywords=["bild", "image", "photo", "picture", "convert", "konvert", "erstelle", "create"],
+                regex_patterns=[
+                    r"(?:erstelle|create|make|build|convert|konvert).*?(?:3d|3D).*?(?:modell|model).*?(?:aus|from).*?(?:bild|image|photo|picture)",
+                    r"(?:bild|image|photo|picture).*?(?:zu|to|in).*?(?:3d|3D)",
+                    r"(?:konvertier|convert).*?(?:bild|image).*?(?:3d|3D)",
+                    r"(?:test_data|data).*?(?:\.png|\.jpg|\.jpeg|\.gif)"
+                ],
+                dimension_patterns=[
+                    r"höhe\s*(?:von\s*)?(\d+(?:\.\d+)?)\s*(?:cm|mm|inch|in)?",
+                    r"height\s*(?:of\s*)?(\d+(?:\.\d+)?)\s*(?:cm|mm|inch|in)?",
+                    r"tiefe\s*(?:von\s*)?(\d+(?:\.\d+)?)\s*(?:cm|mm|inch|in)?"
+                ],
+                material_keywords=["plastic", "pla", "abs", "petg"],
+                confidence_boost=0.3
             )
         ]
         
@@ -289,7 +350,12 @@ class ResearchAgent(BaseAgent):
             r"(\d+(?:\.\d+)?)\s*(?:cm|mm|inch|in)?\s*(?:in\s*)?(?:size|diameter|width|height)"
         ]
     
-    async def execute_task(self, task_details: Dict[str, Any]) -> TaskResult:
+    def execute_task(self, task_details: Union[Dict[str, Any], ResearchAgentInput]) -> TaskResult:
+        """Synchronous entrypoint expected by BaseAgent and legacy callers."""
+        normalized_details = self._normalize_task_details(task_details)
+        return self._run_async(self.execute_task_async(normalized_details))
+
+    async def execute_task_async(self, task_details: Union[Dict[str, Any], ResearchAgentInput]) -> TaskResult:
         """
         Execute intent recognition task with optional web research.
         
@@ -300,7 +366,8 @@ class ResearchAgent(BaseAgent):
             Dictionary with task execution results
         """
         try:
-            # Validate input
+            # Normalize & validate input according to unified contract
+            task_details = self._normalize_task_details(task_details)
             self.validate_input(task_details)
             
             # Extract user request
@@ -312,7 +379,7 @@ class ResearchAgent(BaseAgent):
             self.logger.info(f"Starting intent recognition for: {user_request[:100]}...")
             
             # Extract intent using AI-enhanced method (now async)
-            intent_result = await self.extract_intent(user_request, context, analysis_depth)
+            intent_result = await self.extract_intent_async(user_request, context, analysis_depth)
             
             # Perform web research if enabled and confidence is low
             if (enable_web_research and 
@@ -362,8 +429,10 @@ class ResearchAgent(BaseAgent):
                     "analysis_depth": analysis_depth,
                     "web_research_used": enable_web_research,
                     "design_specifications_generated": True,
-                    "specification_version": design_specifications.get("metadata", {}).get("specification_version", "1.0")
-                }
+                    "specification_version": design_specifications.get("metadata", {}).get("specification_version", "1.0"),
+                    "task_id": task_details.get("task_id")
+                },
+                task_id=task_details.get("task_id")
             )
             
         except Exception as e:
@@ -371,8 +440,57 @@ class ResearchAgent(BaseAgent):
             return TaskResult(
                 success=False,
                 error_message=str(e),
-                data={}
+                data={},
+                metadata={"task_id": task_details.get("task_id")},
+                task_id=task_details.get("task_id")
             )
+
+    def _run_async(self, coro: Awaitable[Any]) -> Any:
+        """Run an async coroutine and return its result, even when a loop is already running."""
+        try:
+            running_loop = asyncio.get_running_loop()
+        except RuntimeError:
+            running_loop = None
+
+        if running_loop and running_loop.is_running():
+            result_container: dict[str, Any] = {}
+            error_container: dict[str, BaseException] = {}
+            done_event = threading.Event()
+
+            def runner() -> None:
+                try:
+                    result_container["value"] = asyncio.run(coro)
+                except BaseException as exc:  # propagate original exception after thread joins
+                    error_container["error"] = exc
+                finally:
+                    done_event.set()
+
+            threading.Thread(target=runner, daemon=True).start()
+            done_event.wait()
+
+            if "error" in error_container:
+                raise error_container["error"]
+            return result_container.get("value")
+
+        return asyncio.run(coro)
+
+    def _normalize_task_details(
+        self,
+        task_details: Union[Dict[str, Any], ResearchAgentInput]
+    ) -> Dict[str, Any]:
+        """Ensure task payloads follow a unified dictionary-based contract."""
+        if isinstance(task_details, ResearchAgentInput):
+            normalized: Dict[str, Any] = task_details.model_dump()
+        elif isinstance(task_details, dict):
+            normalized = dict(task_details)
+        else:
+            raise ValidationError("task_details must be a dict or ResearchAgentInput instance")
+
+        task_id = normalized.get("task_id")
+        if not isinstance(task_id, str) or not task_id.strip():
+            normalized["task_id"] = f"{self.agent_name}-{int(time.time() * 1000)}"
+
+        return normalized
     
     def research(self, keywords: List[str]) -> str:
         """
@@ -449,6 +567,16 @@ class ResearchAgent(BaseAgent):
         """
         results = []
         
+        ddgs_factory = self.ddgs_factory or DDGS
+
+        if not self.ddgs and ddgs_factory:
+            try:
+                self.ddgs = ddgs_factory()
+                self.ddgs_factory = ddgs_factory
+            except Exception as e:
+                self.logger.error(f"Failed to initialize DuckDuckGo search: {str(e)}")
+                return results
+
         if not self.ddgs:
             return results
         
@@ -1094,7 +1222,16 @@ class ResearchAgent(BaseAgent):
         return specifications
 
     # [All the existing intent extraction methods remain the same]
-    async def extract_intent(
+    def extract_intent(
+        self,
+        user_request: str,
+        context: Dict[str, Any] = None,
+        analysis_depth: str = "standard"
+    ) -> Dict[str, Any]:
+        """Synchronous wrapper for intent extraction used by legacy callers/tests."""
+        return self._run_async(self.extract_intent_async(user_request, context, analysis_depth))
+
+    async def extract_intent_async(
         self,
         user_request: str,
         context: Dict[str, Any] = None,
@@ -1112,6 +1249,17 @@ class ResearchAgent(BaseAgent):
             Dictionary with extracted intent information
         """
         context = context or {}
+
+        # Handle empty or invalid requests early with a low-confidence fallback
+        if not isinstance(user_request, str):
+            user_request = "" if user_request is None else str(user_request)
+
+        if not user_request.strip():
+            intent_result = self._extract_intent_keywords("", context)
+            intent_result["confidence"] = 0.1
+            intent_result["method_used"] = "keyword_fallback"
+            intent_result.setdefault("warnings", []).append("Empty or invalid user request provided")
+            return intent_result
         
         # Try enhanced AI model extraction first (if available)
         if self.ai_model_manager and self.ai_model_manager.models:
@@ -1144,6 +1292,7 @@ class ResearchAgent(BaseAgent):
         # Final fallback - basic keyword matching
         intent_result = self._extract_intent_keywords(user_request, context)
         intent_result["method_used"] = "keyword_fallback"
+        intent_result["confidence"] = min(intent_result.get("confidence", 0.3), 0.2)
         return intent_result
     
     async def _extract_intent_ai_enhanced(
@@ -1184,6 +1333,10 @@ class ResearchAgent(BaseAgent):
                     "processing_time": ai_response.processing_time,
                     "ai_entities": ai_data.get("entities", [])
                 }
+
+                detected_object = result.get("object_type")
+                if not detected_object or detected_object == "unknown":
+                    result["confidence"] = min(result.get("confidence", 0.0), 0.2)
                 
                 # Enhance with traditional pattern matching for validation
                 if self.nlp:
@@ -1320,6 +1473,10 @@ class ResearchAgent(BaseAgent):
         if best_pattern:
             result["object_type"] = best_pattern.name
             result["confidence"] = min(best_score, 0.8)  # Cap regex confidence at 0.8
+
+            # If confidence comes only from pattern boost (no actual matches), lower certainty
+            if best_score - best_pattern.confidence_boost <= 0:
+                result["confidence"] = min(result["confidence"], 0.2)
             
             # Extract dimensions using regex
             dimensions = self._extract_dimensions_regex(user_text, best_pattern)
@@ -1781,6 +1938,7 @@ class ResearchAgent(BaseAgent):
         }
         return temp_map.get(material.lower(), {"nozzle": 210, "bed": 60})
     
+    
     def validate_input(self, task_details: Dict[str, Any]) -> bool:
         """Validate research agent input."""
         if not isinstance(task_details, dict):
@@ -1861,35 +2019,16 @@ class ResearchAgent(BaseAgent):
         if not self.ai_model_manager:
             self.logger.error("AI Model Manager not available")
             return False
-        
+
         try:
-            from core.ai_models import AIModelType
-            
-            # Convert string to enum
-            model_type_map = {
-                "spacy_transformers": AIModelType.SPACY_TRANSFORMERS,
-                "openai_gpt": AIModelType.OPENAI_GPT,
-                "anthropic_claude": AIModelType.ANTHROPIC_CLAUDE,
-                "local_llama": AIModelType.LOCAL_LLAMA,
-                "local_mistral": AIModelType.LOCAL_MISTRAL
-            }
-            
-            if model_type not in model_type_map:
-                self.logger.error(f"Unknown model type: {model_type}")
-                return False
-            
-            model_type_enum = model_type_map[model_type]
-            success = self.ai_model_manager.set_default_model(model_type_enum)
-            
-            if success:
-                self.logger.info(f"Preferred AI model set to: {model_type}")
-            else:
-                self.logger.error(f"Failed to set preferred AI model: {model_type}")
-            
-            return success
-            
-        except Exception as e:
-            self.logger.error(f"Failed to set preferred AI model: {str(e)}")
+            self.ai_model_manager.set_preferred_model(model_type)
+            self.logger.info(f"Preferred AI model set to: {model_type}")
+            return True
+        except ValueError as exc:
+            self.logger.error(str(exc))
+            return False
+        except Exception as exc:  # pragma: no cover - defensive
+            self.logger.error(f"Failed to set preferred AI model: {exc}")
             return False
     
     def get_ai_model_status(self) -> Dict[str, Any]:

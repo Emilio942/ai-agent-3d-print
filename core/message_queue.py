@@ -21,7 +21,7 @@ import json
 import time
 import uuid
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 from datetime import datetime, timedelta
 from enum import Enum, IntEnum
 from heapq import heappush, heappop
@@ -29,15 +29,25 @@ from typing import Dict, List, Optional, Any, Callable, Union
 from threading import Lock, Event
 import logging
 
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
-from exceptions import (
-    MessageQueueError, MessageNotFoundError, QueueFullError,
-    MessageExpiredError, InvalidMessageError
-)
-from logger import AgentLogger
+try:
+    from .exceptions import (
+        MessageQueueError, MessageNotFoundError, QueueFullError,
+        MessageExpiredError, InvalidMessageError
+    )
+    from .logger import AgentLogger
+except ImportError:  # pragma: no cover - legacy fallback paths
+    try:
+        from core.exceptions import (  # type: ignore
+            MessageQueueError, MessageNotFoundError, QueueFullError,
+            MessageExpiredError, InvalidMessageError
+        )
+        from core.logger import AgentLogger  # type: ignore
+    except ImportError:
+        from exceptions import (  # type: ignore
+            MessageQueueError, MessageNotFoundError, QueueFullError,
+            MessageExpiredError, InvalidMessageError
+        )
+        from logger import AgentLogger  # type: ignore
 
 
 class MessagePriority(IntEnum):
@@ -79,11 +89,11 @@ class Message:
         result: Processing result (when completed)
         error: Error information (when failed)
     """
-    id: str
     sender: str
     receiver: str
     message_type: str
     payload: Dict[str, Any]
+    id: str = field(default_factory=lambda: str(uuid.uuid4()))
     priority: MessagePriority = MessagePriority.NORMAL
     created_at: datetime = None
     expires_at: Optional[datetime] = None

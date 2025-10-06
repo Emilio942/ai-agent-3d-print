@@ -36,6 +36,13 @@ except ImportError as e:
     ADVANCED_ROUTES_AVAILABLE = False
 
 try:
+    from api.preview_routes import router as preview_router
+    PREVIEW_ROUTES_AVAILABLE = True
+except ImportError as e:
+    print(f"Warning: Preview routes not available: {e}")
+    PREVIEW_ROUTES_AVAILABLE = False
+
+try:
     from api.analytics_routes import router as analytics_router
     ANALYTICS_ROUTES_AVAILABLE = True
 except ImportError as e:
@@ -68,6 +75,10 @@ app.add_middleware(
 if ADVANCED_ROUTES_AVAILABLE:
     app.include_router(advanced_router)
     print("✅ Advanced routes registered")
+
+if PREVIEW_ROUTES_AVAILABLE:
+    app.include_router(preview_router)
+    print("✅ Preview routes registered")
 
 if ANALYTICS_ROUTES_AVAILABLE:
     app.include_router(analytics_router)
@@ -312,16 +323,17 @@ if WEBSOCKET_ROUTES_AVAILABLE:
     print("✅ WebSocket routes included")
 
 if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8001))
     print("🚀 Starting AI Agent 3D Print System Web Server...")
     print(f"📁 Working directory: {os.getcwd()}")
     print(f"🖨️ Printer support: {'✅ Available' if PRINTER_SUPPORT else '❌ Not available'}")
-    print("🌐 Web interface: http://localhost:8001")
-    print("📚 API docs: http://localhost:8001/docs")
+    print(f"🌐 Web interface: http://localhost:{port}")
+    print(f"📚 API docs: http://localhost:{port}/docs")
     
     uvicorn.run(
         "web_server:app",
         host="0.0.0.0",
-        port=8001,
+        port=port,
         reload=False,
         log_level="info"
     )

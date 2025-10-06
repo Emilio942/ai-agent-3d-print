@@ -1,0 +1,149 @@
+{
+  "overall_status": "PARTIAL",
+  "success_rate": 61.904761904761905,
+  "total_tests": 21,
+  "passed_tests": 13,
+  "total_time": 4.181909799575806,
+  "test_results": {
+    "security_features": true,
+    "performance_features": true,
+    "api_endpoints": true,
+    "middleware_integration": false
+  },
+  "detailed_results": {
+    "Security": [
+      {
+        "test": "SQL Injection Detection",
+        "status": "PASS",
+        "details": "Detected threat score: 16",
+        "timestamp": "2025-06-30T12:41:34.943915"
+      },
+      {
+        "test": "XSS Detection",
+        "status": "PASS",
+        "details": "Detected threat score: 14",
+        "timestamp": "2025-06-30T12:41:34.943984"
+      },
+      {
+        "test": "Rate Limiting System",
+        "status": "PASS",
+        "details": "Processed 5 requests successfully",
+        "timestamp": "2025-06-30T12:41:34.944025"
+      },
+      {
+        "test": "Audit Logging",
+        "status": "PASS",
+        "details": "Total events logged: 1",
+        "timestamp": "2025-06-30T12:41:34.944511"
+      },
+      {
+        "test": "MFA Setup",
+        "status": "PASS",
+        "details": "Secret generated, QR code: 1730 chars",
+        "timestamp": "2025-06-30T12:41:34.955400"
+      }
+    ],
+    "Performance": [
+      {
+        "test": "Cache System",
+        "status": "PASS",
+        "details": "Cache set/get operations working",
+        "timestamp": "2025-06-30T12:41:34.967231"
+      },
+      {
+        "test": "Cache Statistics",
+        "status": "PASS",
+        "details": "Hit rate: 100.00%, Size: 0.00MB",
+        "timestamp": "2025-06-30T12:41:34.967259"
+      },
+      {
+        "test": "Resource Management",
+        "status": "PASS",
+        "details": "Memory: True, CPU: True",
+        "timestamp": "2025-06-30T12:41:35.067586"
+      },
+      {
+        "test": "Resource Allocation",
+        "status": "PASS",
+        "details": "Resource allocation context manager working",
+        "timestamp": "2025-06-30T12:41:35.369958"
+      },
+      {
+        "test": "Performance Monitoring",
+        "status": "PASS",
+        "details": "Recorded metrics, samples: 1",
+        "timestamp": "2025-06-30T12:41:35.369989"
+      },
+      {
+        "test": "Response Compression",
+        "status": "PASS",
+        "details": "Compression ratio: 0.03",
+        "timestamp": "2025-06-30T12:41:35.370073"
+      }
+    ],
+    "API": [
+      {
+        "test": "Endpoint /health",
+        "status": "SKIP",
+        "details": "Server not running: HTTPConnectionPool(host='localhost', port=8000): Max retries exceeded with url: /health (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x760facb9d4f0>: Failed to establish a new connection: [Errno 111] Connection refused'))",
+        "timestamp": "2025-06-30T12:41:35.371138"
+      },
+      {
+        "test": "Endpoint /api/security-performance/status",
+        "status": "SKIP",
+        "details": "Server not running: HTTPConnectionPool(host='localhost', port=8000): Max retries exceeded with url: /api/security-performance/status (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x760facb9dac0>: Failed to establish a new connection: [Errno 111] Connection refused'))",
+        "timestamp": "2025-06-30T12:41:35.371609"
+      },
+      {
+        "test": "Endpoint /api/security-performance/security/status",
+        "status": "SKIP",
+        "details": "Server not running: HTTPConnectionPool(host='localhost', port=8000): Max retries exceeded with url: /api/security-performance/security/status (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x760facb9e0c0>: Failed to establish a new connection: [Errno 111] Connection refused'))",
+        "timestamp": "2025-06-30T12:41:35.372107"
+      },
+      {
+        "test": "Endpoint /api/security-performance/performance/status",
+        "status": "SKIP",
+        "details": "Server not running: HTTPConnectionPool(host='localhost', port=8000): Max retries exceeded with url: /api/security-performance/performance/status (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x760facb9d0a0>: Failed to establish a new connection: [Errno 111] Connection refused'))",
+        "timestamp": "2025-06-30T12:41:35.372482"
+      },
+      {
+        "test": "Endpoint /api/security-performance/performance/cache/stats",
+        "status": "SKIP",
+        "details": "Server not running: HTTPConnectionPool(host='localhost', port=8000): Max retries exceeded with url: /api/security-performance/performance/cache/stats (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x760facb9e3c0>: Failed to establish a new connection: [Errno 111] Connection refused'))",
+        "timestamp": "2025-06-30T12:41:35.372833"
+      },
+      {
+        "test": "Security Headers",
+        "status": "SKIP",
+        "details": "Server not running",
+        "timestamp": "2025-06-30T12:41:35.373150"
+      }
+    ],
+    "Middleware": [
+      {
+        "test": "Import Security Middleware",
+        "status": "PASS",
+        "details": "SecurityMiddleware imported successfully",
+        "timestamp": "2025-06-30T12:41:35.521393"
+      },
+      {
+        "test": "Import Performance Middleware",
+        "status": "PASS",
+        "details": "PerformanceMiddleware imported successfully",
+        "timestamp": "2025-06-30T12:41:35.521414"
+      },
+      {
+        "test": "Security Middleware Registration",
+        "status": "FAIL",
+        "details": "Security middleware not found in: ['Middleware', 'Middleware', 'Middleware', 'Middleware', 'Middleware']",
+        "timestamp": "2025-06-30T12:41:39.091486"
+      },
+      {
+        "test": "Performance Middleware Registration",
+        "status": "FAIL",
+        "details": "Performance middleware not found",
+        "timestamp": "2025-06-30T12:41:39.091510"
+      }
+    ]
+  }
+}

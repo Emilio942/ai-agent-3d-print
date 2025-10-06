@@ -119,6 +119,22 @@ except ImportError as e:
     SECURITY_ROUTES_AVAILABLE = False
     logger.warning(f"Security routes not available: {e}")
 
+# Optional: cat conversion routes
+try:
+    from api.cat_routes import router as cat_router
+    CAT_ROUTES_AVAILABLE = True
+except ImportError as e:
+    CAT_ROUTES_AVAILABLE = False
+    logger.warning(f"Cat routes not available: {e}")
+
+# Optional: slicer routes
+try:
+    from api.slicer_routes import router as slicer_router
+    SLICER_ROUTES_AVAILABLE = True
+except ImportError as e:
+    SLICER_ROUTES_AVAILABLE = False
+    logger.warning(f"Slicer routes not available: {e}")
+
 # Application state
 app_state = {
     "parent_agent": None,
@@ -203,6 +219,8 @@ app = FastAPI(
 
 # Mount static files for web interface
 app.mount("/web", StaticFiles(directory="web"), name="web")
+# Mount static files for templates 
+app.mount("/templates", StaticFiles(directory="templates"), name="templates")
 
 # Add CORS middleware for frontend communication
 app.add_middleware(
@@ -270,6 +288,14 @@ if WEBSOCKET_ROUTES_AVAILABLE:
 if SECURITY_ROUTES_AVAILABLE:
     app.include_router(security_router)
     logger.info("Security routes registered")
+
+if 'CAT_ROUTES_AVAILABLE' in globals() and CAT_ROUTES_AVAILABLE:
+    app.include_router(cat_router)
+    logger.info("Cat routes registered")
+
+if 'SLICER_ROUTES_AVAILABLE' in globals() and SLICER_ROUTES_AVAILABLE:
+    app.include_router(slicer_router)
+    logger.info("Slicer routes registered")
 
 # =============================================================================
 # EXCEPTION HANDLERS

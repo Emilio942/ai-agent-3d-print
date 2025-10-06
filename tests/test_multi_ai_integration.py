@@ -13,6 +13,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from agents.research_agent import ResearchAgent
 from core.ai_models import AIModelManager, AIModelConfig, AIModelType
+from core.api_schemas import ResearchAgentInput
 
 
 class TestMultiAIModelIntegration:
@@ -46,7 +47,7 @@ class TestMultiAIModelIntegration:
     @pytest.mark.asyncio
     async def test_extract_intent_basic(self, research_agent):
         """Test basic intent extraction functionality."""
-        result = await research_agent.extract_intent("Create a small cube")
+        result = await research_agent.extract_intent_async("Create a small cube")
         
         assert isinstance(result, dict)
         assert "object_type" in result
@@ -58,7 +59,7 @@ class TestMultiAIModelIntegration:
     async def test_extract_intent_with_context(self, research_agent):
         """Test intent extraction with context."""
         context = {"material": "PLA", "size": "small"}
-        result = await research_agent.extract_intent("Create a gear", context)
+        result = await research_agent.extract_intent_async("Create a gear", context)
         
         assert isinstance(result, dict)
         assert "object_type" in result
@@ -78,13 +79,13 @@ class TestMultiAIModelIntegration:
     @pytest.mark.asyncio
     async def test_execute_task_async(self, research_agent):
         """Test that execute_task works as async method."""
-        task_details = {
-            "user_request": "Create a small cube",
-            "context": {},
-            "analysis_depth": "standard"
-        }
+        task_details = ResearchAgentInput(
+            user_request="Create a small cube",
+            context={},
+            analysis_depth="standard"
+        )
         
-        result = await research_agent.execute_task(task_details)
+        result = await research_agent.execute_task_async(task_details)
         
         assert hasattr(result, 'success') or 'success' in result
     
@@ -111,7 +112,7 @@ class TestAIModelFallback:
     async def test_fallback_to_spacy(self, research_agent):
         """Test fallback to spaCy when AI models fail."""
         # This should work even if AI models are not available
-        result = await research_agent.extract_intent("Create a small sphere")
+        result = await research_agent.extract_intent_async("Create a small sphere")
         
         assert isinstance(result, dict)
         assert "object_type" in result

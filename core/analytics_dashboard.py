@@ -53,6 +53,7 @@ class MetricsCollector:
     
     def __init__(self, db_path: str = "data/analytics.db"):
         self.logger = get_logger(f"{__name__}.MetricsCollector")
+        self.db_path = db_path  # Store as instance variable
         # Use simple in-memory storage
         self.metrics_store: List[Dict[str, Any]] = []
         self.max_metrics = 1000  # Limit memory usage
@@ -116,40 +117,39 @@ class MetricsCollector:
                          start_time: datetime = None,
                          end_time: datetime = None,
                          limit: int = 1000) -> List[Metric]:
-        """Retrieve metrics from the database"""
+        """Retrieve metrics from memory store"""
         try:
-            query = "SELECT name, value, type, tags, timestamp FROM metrics WHERE 1=1"
-            params = []
+            filtered_metrics = []
             
-            if name:
-                query += " AND name = ?"
-                params.append(name)
-            
-            if start_time:
-                query += " AND timestamp >= ?"
-                params.append(start_time)
-            
-            if end_time:
-                query += " AND timestamp <= ?"
-                params.append(end_time)
-            
-            query += " ORDER BY timestamp DESC LIMIT ?"
-            params.append(limit)
-            
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.execute(query, params)
+            for metric_dict in self.metrics_store:
+                # Filter by name if specified
+                if name and metric_dict.get("name") != name:
+                    continue
                 
-                metrics = []
-                for row in cursor.fetchall():
-                    metrics.append(Metric(
-                        name=row[0],
-                        value=row[1],
-                        metric_type=MetricType(row[2]),
-                        tags=json.loads(row[3]),
-                        timestamp=datetime.fromisoformat(row[4])
-                    ))
+                # Parse timestamp for filtering
+                metric_timestamp = datetime.fromisoformat(metric_dict["timestamp"])
                 
-                return metrics
+                # Filter by start_time if specified
+                if start_time and metric_timestamp < start_time:
+                    continue
+                
+                # Filter by end_time if specified  
+                if end_time and metric_timestamp > end_time:
+                    continue
+                
+                # Convert back to Metric object
+                metric = Metric(
+                    name=metric_dict["name"],
+                    value=metric_dict["value"],
+                    metric_type=MetricType(metric_dict["type"]),
+                    tags=metric_dict["tags"],
+                    timestamp=metric_timestamp
+                )
+                filtered_metrics.append(metric)
+            
+            # Sort by timestamp descending and limit
+            filtered_metrics.sort(key=lambda x: x.timestamp, reverse=True)
+            return filtered_metrics[:limit]
                 
         except Exception as e:
             self.logger.error(f"❌ Failed to retrieve metrics: {e}")
@@ -535,3 +535,100 @@ class AnalyticsDashboard:
             })
         
         return alerts
+    
+    async def get_overview(self) -> Dict[str, Any]:
+        """Get comprehensive analytics overview"""
+        return await self.get_dashboard_summary()
+    
+    async def get_live_metrics(self) -> Dict[str, Any]:
+        """Get real-time system metrics"""
+        try:
+            # Get recent metrics from the last hour
+            last_hour = datetime.now() - timedelta(hours=1)
+            recent_metrics = await self.metrics_collector.get_metrics(
+                start_time=last_hour,
+                limit=100
+            )
+            
+            # Process live metrics
+            live_data = {
+                "timestamp": datetime.now().isoformat(),
+                "active_jobs": self.print_jobs_total - self.print_jobs_success - self.print_jobs_failed,
+                "total_jobs": self.print_jobs_total,
+                "success_rate": (self.print_jobs_success / max(1, self.print_jobs_total)) * 100,
+                "api_requests_per_minute": len([m for m in recent_metrics if m.name == "api_requests_total" and m.timestamp >= datetime.now() - timedelta(minutes=1)]),
+                "average_conversion_time": 0,
+                "system_load": {
+                    "cpu_usage": 45.2,  # Mock data - could be replaced with actual system metrics
+                    "memory_usage": 62.8,
+                    "disk_usage": 23.1
+                }
+            }
+            
+            # Calculate average conversion time
+            conversion_times = [m.value for m in recent_metrics if m.name == "image_conversion_duration"]
+            if conversion_times:
+                live_data["average_conversion_time"] = statistics.mean(conversion_times)
+            
+            return live_data
+            
+        except Exception as e:
+            self.logger.error(f"❌ Failed to get live metrics: {e}")
+            return {
+                "timestamp": datetime.now().isoformat(),
+                "error": "Failed to retrieve live metrics",
+                "active_jobs": 0,
+                "total_jobs": 0,
+                "success_rate": 0,
+                "api_requests_per_minute": 0,
+                "average_conversion_time": 0,
+                "system_load": {
+                    "cpu_usage": 0,
+                    "memory_usage": 0,
+                    "disk_usage": 0
+                }
+            }
+    
+    async def get_system_health(self) -> Dict[str, Any]:
+        """Get system health metrics"""
+        try:
+            # Get recent metrics for health assessment
+            last_24h = datetime.now() - timedelta(hours=24)
+            recent_metrics = await self.metrics_collector.get_metrics(
+                start_time=last_24h,
+                limit=1000
+            )
+            
+            # Assess system health
+            health_data = await self._assess_system_health(recent_metrics)
+            
+            # Add additional health indicators
+            health_data.update({
+                "uptime_hours": (datetime.now() - self.start_time).total_seconds() / 3600,
+                "total_print_jobs": self.print_jobs_total,
+                "successful_jobs": self.print_jobs_success,
+                "failed_jobs": self.print_jobs_failed,
+                "image_conversions": self.image_conversions_total,
+                "voice_commands": self.voice_commands_total,
+                "api_requests": self.api_requests_total,
+                "alerts": await self._check_alerts(recent_metrics)
+            })
+            
+            return health_data
+            
+        except Exception as e:
+            self.logger.error(f"❌ Failed to get system health: {e}")
+            return {
+                "score": 0,
+                "status": "error",
+                "issues": ["Failed to retrieve system health data"],
+                "last_check": datetime.now().isoformat(),
+                "uptime_hours": 0,
+                "total_print_jobs": 0,
+                "successful_jobs": 0,
+                "failed_jobs": 0,
+                "image_conversions": 0,
+                "voice_commands": 0,
+                "api_requests": 0,
+                "alerts": []
+            }

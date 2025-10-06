@@ -6,10 +6,12 @@ FIXED Multi-Printer System Test - Fast and Reliable
 import asyncio
 import sys
 import os
+import pytest
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from multi_printer_support import MultiPrinterDetector
 
+@pytest.mark.asyncio
 async def test_fixed_system():
     print("🚀 FIXED Multi-Printer Detection Test")
     print("=" * 50)

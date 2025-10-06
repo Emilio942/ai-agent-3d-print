@@ -10,10 +10,13 @@ import os
 import json
 import asyncio
 from abc import ABC, abstractmethod
-from typing import Dict, List, Any, Optional, Union
+from typing import Dict, List, Any, Optional, Union, Awaitable
 from dataclasses import dataclass
 from enum import Enum
 import logging
+from pathlib import Path
+
+import yaml
 
 # Core imports
 from core.logger import AgentLogger
@@ -35,25 +38,63 @@ class AIModelConfig:
     api_key: Optional[str] = None
     api_base: Optional[str] = None
     model_name: Optional[str] = None
+    api_url: Optional[str] = None
     max_tokens: int = 1000
     temperature: float = 0.7
     timeout: int = 30
+    enabled: bool = True
+    config_path: Optional[str] = None
     additional_params: Dict[str, Any] = None
     
     def __post_init__(self):
         if self.additional_params is None:
             self.additional_params = {}
 
+        # Harmonize API base/url aliases for convenience
+        if self.api_base and not self.api_url:
+            self.api_url = self.api_base
+        elif self.api_url and not self.api_base:
+            self.api_base = self.api_url
+
 
 @dataclass
 class AIResponse:
     """Standardized response from AI models."""
-    content: str
-    confidence: float
-    model_used: str
-    processing_time: float
+    content: str = ""
+    confidence: float = 0.0
+    model_used: str = ""
+    processing_time: float = 0.0
+    success: bool = False
+    data: Optional[Dict[str, Any]] = None
     token_usage: Optional[Dict[str, int]] = None
     error: Optional[str] = None
+    error_message: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
+
+    def __post_init__(self):
+        if self.error and not self.error_message:
+            self.error_message = self.error
+        if self.error_message and not self.error:
+            self.error = self.error_message
+
+
+def _run_async(coro: Awaitable[Any]) -> Any:
+    """Execute an async coroutine regardless of loop availability."""
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = None
+
+    if loop and loop.is_running():
+        new_loop = asyncio.new_event_loop()
+        try:
+            asyncio.set_event_loop(new_loop)
+            return new_loop.run_until_complete(coro)
+        finally:
+            asyncio.set_event_loop(loop)
+            new_loop.close()
+
+    return asyncio.run(coro)
 
 
 class BaseAIModel(ABC):
@@ -61,6 +102,7 @@ class BaseAIModel(ABC):
     
     def __init__(self, config: AIModelConfig):
         self.config = config
+        self.model_type = config.model_type
         self.logger = AgentLogger(f"ai_model_{config.model_type.value}")
         
     @abstractmethod
@@ -100,6 +142,45 @@ class BaseAIModel(ABC):
             True if connection is valid, False otherwise
         """
         pass
+
+    def analyze_request(
+        self,
+        request_text: str,
+        context: Optional[Dict[str, Any]] = None,
+        analysis_depth: str = "standard"
+    ) -> AIResponse:
+        """Synchronous helper that wraps :meth:`process_intent`."""
+
+        context = context or {}
+
+        try:
+            response = _run_async(self.process_intent(request_text, context))
+        except Exception as exc:  # pragma: no cover - catastrophic fallback
+            self.logger.error(f"Analyze request failed: {exc}")
+            return AIResponse(
+                content="",
+                confidence=0.0,
+                model_used=self.config.model_type.value,
+                processing_time=0.0,
+                success=False,
+                error_message=str(exc)
+            )
+
+        if not response.model_used:
+            response.model_used = self.config.model_type.value
+
+        if response.error or response.error_message:
+            response.success = False
+        else:
+            response.success = True
+
+        if response.content and response.data is None:
+            try:
+                response.data = json.loads(response.content)
+            except (TypeError, json.JSONDecodeError):
+                response.data = {"raw_content": response.content}
+
+        return response
 
 
 class SpacyTransformersModel(BaseAIModel):
@@ -163,7 +244,7 @@ class SpacyTransformersModel(BaseAIModel):
                 return AIResponse(
                     content=json.dumps(result),
                     confidence=confidence,
-                    model_used="spacy_en_core_web_sm",
+                    model_used=self.config.model_type.value,
                     processing_time=processing_time
                 )
             else:
@@ -174,7 +255,7 @@ class SpacyTransformersModel(BaseAIModel):
             return AIResponse(
                 content="",
                 confidence=0.0,
-                model_used="spacy_transformers",
+                model_used=self.config.model_type.value,
                 processing_time=time.time() - start_time,
                 error=str(e)
             )
@@ -238,28 +319,44 @@ class OpenAIModel(BaseAIModel):
     
     def __init__(self, config: AIModelConfig):
         super().__init__(config)
-        self._initialize_client()
+        self._client_is_async = False
+        self.client = None
+        self.model_name = self.config.model_name or "gpt-3.5-turbo"
         
     def _initialize_client(self):
         """Initialize OpenAI client."""
         try:
             import openai
-            self.client = openai.AsyncOpenAI(
-                api_key=self.config.api_key,
-                base_url=self.config.api_base
-            )
-            self.model_name = self.config.model_name or "gpt-3.5-turbo"
+            self.model_name = self.config.model_name or self.model_name or "gpt-3.5-turbo"
+            if hasattr(openai, "OpenAI"):
+                self.client = openai.OpenAI(
+                    api_key=self.config.api_key,
+                    base_url=self.config.api_base
+                )
+                self._client_is_async = False
+            else:
+                self.client = openai.AsyncOpenAI(
+                    api_key=self.config.api_key,
+                    base_url=self.config.api_base
+                )
+                self._client_is_async = True
             self.logger.info(f"OpenAI client initialized with model: {self.model_name}")
         except Exception as e:
             self.logger.error(f"Failed to initialize OpenAI client: {e}")
             self.client = None
+            self._client_is_async = False
+
+    def _ensure_client(self) -> bool:
+        if not self.client:
+            self._initialize_client()
+        return self.client is not None
     
     async def process_intent(self, user_input: str, context: Dict[str, Any] = None) -> AIResponse:
         """Process intent using OpenAI GPT."""
         import time
         start_time = time.time()
         
-        if not self.client:
+        if not self._ensure_client():
             return AIResponse(
                 content="",
                 confidence=0.0,
@@ -284,16 +381,29 @@ Respond with JSON format:
     "reasoning": "explanation"
 }"""
             
-            response = await self.client.chat.completions.create(
-                model=self.model_name,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_input}
-                ],
-                max_tokens=self.config.max_tokens,
-                temperature=self.config.temperature,
-                timeout=self.config.timeout
-            )
+            if self._client_is_async:
+                response = await self.client.chat.completions.create(
+                    model=self.model_name,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_input}
+                    ],
+                    max_tokens=self.config.max_tokens,
+                    temperature=self.config.temperature,
+                    timeout=self.config.timeout
+                )
+            else:
+                response = await asyncio.to_thread(
+                    self.client.chat.completions.create,
+                    model=self.model_name,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_input}
+                    ],
+                    max_tokens=self.config.max_tokens,
+                    temperature=self.config.temperature,
+                    timeout=self.config.timeout
+                )
             
             content = response.choices[0].message.content
             processing_time = time.time() - start_time
@@ -304,17 +414,23 @@ Respond with JSON format:
                 confidence = parsed_content.get("confidence", 0.8)
             except:
                 confidence = 0.8
+
+            usage = getattr(response, "usage", None)
+            token_usage = None
+            if usage:
+                token_usage = {
+                    "prompt_tokens": getattr(usage, "prompt_tokens", None),
+                    "completion_tokens": getattr(usage, "completion_tokens", None),
+                    "total_tokens": getattr(usage, "total_tokens", None)
+                }
+                token_usage = {k: v for k, v in token_usage.items() if v is not None} or None
             
             return AIResponse(
                 content=content,
                 confidence=confidence,
                 model_used=self.model_name,
                 processing_time=processing_time,
-                token_usage={
-                    "prompt_tokens": response.usage.prompt_tokens,
-                    "completion_tokens": response.usage.completion_tokens,
-                    "total_tokens": response.usage.total_tokens
-                }
+                token_usage=token_usage
             )
             
         except Exception as e:
@@ -332,7 +448,7 @@ Respond with JSON format:
         import time
         start_time = time.time()
         
-        if not self.client:
+        if not self._ensure_client():
             return AIResponse(
                 content=query,
                 confidence=0.0,
@@ -355,30 +471,49 @@ Respond with JSON format:
     "research_suggestions": ["suggestion1", "suggestion2"]
 }"""
             
-            response = await self.client.chat.completions.create(
-                model=self.model_name,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": f"Enhance this 3D printing search query: {query}"}
-                ],
-                max_tokens=self.config.max_tokens,
-                temperature=self.config.temperature,
-                timeout=self.config.timeout
-            )
+            if self._client_is_async:
+                response = await self.client.chat.completions.create(
+                    model=self.model_name,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": f"Enhance this 3D printing search query: {query}"}
+                    ],
+                    max_tokens=self.config.max_tokens,
+                    temperature=self.config.temperature,
+                    timeout=self.config.timeout
+                )
+            else:
+                response = await asyncio.to_thread(
+                    self.client.chat.completions.create,
+                    model=self.model_name,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": f"Enhance this 3D printing search query: {query}"}
+                    ],
+                    max_tokens=self.config.max_tokens,
+                    temperature=self.config.temperature,
+                    timeout=self.config.timeout
+                )
             
             content = response.choices[0].message.content
             processing_time = time.time() - start_time
-            
+
+            usage = getattr(response, "usage", None)
+            token_usage = None
+            if usage:
+                token_usage = {
+                    "prompt_tokens": getattr(usage, "prompt_tokens", None),
+                    "completion_tokens": getattr(usage, "completion_tokens", None),
+                    "total_tokens": getattr(usage, "total_tokens", None)
+                }
+                token_usage = {k: v for k, v in token_usage.items() if v is not None} or None
+
             return AIResponse(
                 content=content,
                 confidence=0.9,
                 model_used=self.model_name,
                 processing_time=processing_time,
-                token_usage={
-                    "prompt_tokens": response.usage.prompt_tokens,
-                    "completion_tokens": response.usage.completion_tokens,
-                    "total_tokens": response.usage.total_tokens
-                }
+                token_usage=token_usage
             )
             
         except Exception as e:
@@ -393,34 +528,20 @@ Respond with JSON format:
     
     def validate_connection(self) -> bool:
         """Validate OpenAI connection."""
-        if not self.client or not self.config.api_key:
+        if not self.config.api_key:
             return False
-        
+
+        if not self._ensure_client():
+            return False
+
         try:
-            # Simple test request
-            import asyncio
-            loop = asyncio.new_event_loop() if not asyncio.get_event_loop().is_running() else None
-            if loop:
-                asyncio.set_event_loop(loop)
-                result = loop.run_until_complete(self._test_connection())
-                loop.close()
+            if self._client_is_async:
+                _run_async(self.client.models.list())
             else:
-                result = asyncio.create_task(self._test_connection())
-            return result
+                self.client.models.list()
+            return True
         except Exception as e:
             self.logger.error(f"OpenAI connection validation failed: {e}")
-            return False
-    
-    async def _test_connection(self) -> bool:
-        """Test OpenAI connection."""
-        try:
-            response = await self.client.chat.completions.create(
-                model=self.model_name,
-                messages=[{"role": "user", "content": "Hello"}],
-                max_tokens=10
-            )
-            return True
-        except:
             return False
 
 
@@ -429,28 +550,57 @@ class AnthropicModel(BaseAIModel):
     
     def __init__(self, config: AIModelConfig):
         super().__init__(config)
-        self._initialize_client()
+        self._client_is_async = False
+        self.client = None
+        self.model_name = self.config.model_name or "claude-3-sonnet-20240229"
         
     def _initialize_client(self):
         """Initialize Anthropic client."""
         try:
             import anthropic
-            self.client = anthropic.AsyncAnthropic(
-                api_key=self.config.api_key,
-                base_url=self.config.api_base
-            )
-            self.model_name = self.config.model_name or "claude-3-sonnet-20240229"
-            self.logger.info(f"Anthropic client initialized with model: {self.model_name}")
+            self.model_name = self.config.model_name or self.model_name or "claude-3-sonnet-20240229"
+            self.client = None
+
+            if hasattr(anthropic, "Anthropic"):
+                try:
+                    self.client = anthropic.Anthropic(
+                        api_key=self.config.api_key,
+                        base_url=self.config.api_base
+                    )
+                    self._client_is_async = False
+                    self.logger.info(
+                        f"Anthropic client initialized (sync) with model: {self.model_name}"
+                    )
+                except Exception as sync_exc:
+                    self.logger.debug(
+                        f"Sync Anthropic client init failed, trying async: {sync_exc}"
+                    )
+
+            if self.client is None and hasattr(anthropic, "AsyncAnthropic"):
+                self.client = anthropic.AsyncAnthropic(
+                    api_key=self.config.api_key,
+                    base_url=self.config.api_base
+                )
+                self._client_is_async = True
+                self.logger.info(
+                    f"Anthropic client initialized (async) with model: {self.model_name}"
+                )
         except Exception as e:
             self.logger.error(f"Failed to initialize Anthropic client: {e}")
             self.client = None
+            self._client_is_async = False
+
+    def _ensure_client(self) -> bool:
+        if not self.client:
+            self._initialize_client()
+        return self.client is not None
     
     async def process_intent(self, user_input: str, context: Dict[str, Any] = None) -> AIResponse:
         """Process intent using Anthropic Claude."""
         import time
         start_time = time.time()
         
-        if not self.client:
+        if not self._ensure_client():
             return AIResponse(
                 content="",
                 confidence=0.0,
@@ -480,17 +630,34 @@ Respond only with valid JSON:
     "print_considerations": ["consideration1", "consideration2"]
 }"""
             
-            response = await self.client.messages.create(
-                model=self.model_name,
-                max_tokens=self.config.max_tokens,
-                temperature=self.config.temperature,
-                system=system_prompt,
-                messages=[
-                    {"role": "user", "content": user_input}
-                ]
-            )
+            if self._client_is_async:
+                response = await self.client.messages.create(
+                    model=self.model_name,
+                    max_tokens=self.config.max_tokens,
+                    temperature=self.config.temperature,
+                    system=system_prompt,
+                    messages=[
+                        {"role": "user", "content": user_input}
+                    ]
+                )
+            else:
+                response = await asyncio.to_thread(
+                    self.client.messages.create,
+                    model=self.model_name,
+                    max_tokens=self.config.max_tokens,
+                    temperature=self.config.temperature,
+                    system=system_prompt,
+                    messages=[
+                        {"role": "user", "content": user_input}
+                    ]
+                )
             
-            content = response.content[0].text
+            response_content = getattr(response, "content", None)
+            if isinstance(response_content, list) and response_content:
+                first_item = response_content[0]
+                content = getattr(first_item, "text", "") or getattr(first_item, "value", "")
+            else:
+                content = getattr(response, "text", "")
             processing_time = time.time() - start_time
             
             # Parse confidence from response
@@ -499,17 +666,23 @@ Respond only with valid JSON:
                 confidence = parsed_content.get("confidence", 0.85)
             except:
                 confidence = 0.85
+
+            usage = getattr(response, "usage", None)
+            token_usage = None
+            if usage:
+                token_usage = {
+                    "input_tokens": getattr(usage, "input_tokens", None),
+                    "output_tokens": getattr(usage, "output_tokens", None),
+                    "total_tokens": getattr(usage, "total_tokens", None)
+                }
+                token_usage = {k: v for k, v in token_usage.items() if v is not None} or None
             
             return AIResponse(
                 content=content,
                 confidence=confidence,
                 model_used=self.model_name,
                 processing_time=processing_time,
-                token_usage={
-                    "input_tokens": response.usage.input_tokens,
-                    "output_tokens": response.usage.output_tokens,
-                    "total_tokens": response.usage.input_tokens + response.usage.output_tokens
-                }
+                token_usage=token_usage
             )
             
         except Exception as e:
@@ -527,7 +700,7 @@ Respond only with valid JSON:
         import time
         start_time = time.time()
         
-        if not self.client:
+        if not self._ensure_client():
             return AIResponse(
                 content=query,
                 confidence=0.0,
@@ -557,29 +730,52 @@ Respond only with valid JSON:
     "confidence": 0.9
 }"""
             
-            response = await self.client.messages.create(
-                model=self.model_name,
-                max_tokens=self.config.max_tokens,
-                temperature=self.config.temperature,
-                system=system_prompt,
-                messages=[
-                    {"role": "user", "content": f"Enhance this 3D printing research query: {query}"}
-                ]
-            )
+            if self._client_is_async:
+                response = await self.client.messages.create(
+                    model=self.model_name,
+                    max_tokens=self.config.max_tokens,
+                    temperature=self.config.temperature,
+                    system=system_prompt,
+                    messages=[
+                        {"role": "user", "content": f"Enhance this 3D printing research query: {query}"}
+                    ]
+                )
+            else:
+                response = await asyncio.to_thread(
+                    self.client.messages.create,
+                    model=self.model_name,
+                    max_tokens=self.config.max_tokens,
+                    temperature=self.config.temperature,
+                    system=system_prompt,
+                    messages=[
+                        {"role": "user", "content": f"Enhance this 3D printing research query: {query}"}
+                    ]
+                )
             
-            content = response.content[0].text
+            response_content = getattr(response, "content", None)
+            if isinstance(response_content, list) and response_content:
+                first_item = response_content[0]
+                content = getattr(first_item, "text", "") or getattr(first_item, "value", "")
+            else:
+                content = getattr(response, "text", "")
             processing_time = time.time() - start_time
+            
+            usage = getattr(response, "usage", None)
+            token_usage = None
+            if usage:
+                token_usage = {
+                    "input_tokens": getattr(usage, "input_tokens", None),
+                    "output_tokens": getattr(usage, "output_tokens", None),
+                    "total_tokens": getattr(usage, "total_tokens", None)
+                }
+                token_usage = {k: v for k, v in token_usage.items() if v is not None} or None
             
             return AIResponse(
                 content=content,
                 confidence=0.9,
                 model_used=self.model_name,
                 processing_time=processing_time,
-                token_usage={
-                    "input_tokens": response.usage.input_tokens,
-                    "output_tokens": response.usage.output_tokens,
-                    "total_tokens": response.usage.input_tokens + response.usage.output_tokens
-                }
+                token_usage=token_usage
             )
             
         except Exception as e:
@@ -594,34 +790,32 @@ Respond only with valid JSON:
     
     def validate_connection(self) -> bool:
         """Validate Anthropic connection."""
-        if not self.client or not self.config.api_key:
+        if not self.config.api_key:
+            return False
+
+        if not self._ensure_client():
             return False
         
         try:
-            # Simple test request
-            import asyncio
-            loop = asyncio.new_event_loop() if not asyncio.get_event_loop().is_running() else None
-            if loop:
-                asyncio.set_event_loop(loop)
-                result = loop.run_until_complete(self._test_connection())
-                loop.close()
+            kwargs = {
+                "model": self.model_name,
+                "max_tokens": 8,
+                "temperature": 0,
+                "system": "Ping test",
+                "messages": [{"role": "user", "content": "Hello"}]
+            }
+
+            if not hasattr(self.client, "messages"):
+                raise AttributeError("Anthropic client missing 'messages' attribute")
+
+            if self._client_is_async:
+                _run_async(self.client.messages.create(**kwargs))
             else:
-                result = asyncio.create_task(self._test_connection())
-            return result
+                self.client.messages.create(**kwargs)
+
+            return True
         except Exception as e:
             self.logger.error(f"Anthropic connection validation failed: {e}")
-            return False
-    
-    async def _test_connection(self) -> bool:
-        """Test Anthropic connection."""
-        try:
-            response = await self.client.messages.create(
-                model=self.model_name,
-                max_tokens=10,
-                messages=[{"role": "user", "content": "Hello"}]
-            )
-            return True
-        except:
             return False
 
 
@@ -636,7 +830,7 @@ class LocalLlamaModel(BaseAIModel):
     async def process_intent(self, user_input: str, context: Dict[str, Any] = None) -> AIResponse:
         """Process intent using local Llama model."""
         import time
-        import httpx
+        import requests
         start_time = time.time()
         
         try:
@@ -656,49 +850,49 @@ Respond with JSON:
 
 <|assistant|>"""
             
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    f"{self.api_base}/api/generate",
-                    json={
-                        "model": self.model_name,
-                        "prompt": prompt,
-                        "stream": False,
-                        "options": {
-                            "temperature": self.config.temperature,
-                            "num_predict": self.config.max_tokens
-                        }
-                    },
-                    timeout=self.config.timeout
+            response = await asyncio.to_thread(
+                requests.post,
+                f"{self.api_base}/api/generate",
+                json={
+                    "model": self.model_name,
+                    "prompt": prompt,
+                    "stream": False,
+                    "options": {
+                        "temperature": self.config.temperature,
+                        "num_predict": self.config.max_tokens
+                    }
+                },
+                timeout=self.config.timeout
+            )
+
+            if response.status_code == 200:
+                result = response.json()
+                content = result.get("response", "")
+
+                # Try to parse confidence
+                try:
+                    parsed_content = json.loads(content)
+                    confidence = parsed_content.get("confidence", 0.7)
+                except:
+                    confidence = 0.7
+
+                processing_time = time.time() - start_time
+
+                return AIResponse(
+                    content=content,
+                    confidence=confidence,
+                    model_used=self.model_name,
+                    processing_time=processing_time
                 )
-                
-                if response.status_code == 200:
-                    result = response.json()
-                    content = result.get("response", "")
-                    
-                    # Try to parse confidence
-                    try:
-                        parsed_content = json.loads(content)
-                        confidence = parsed_content.get("confidence", 0.7)
-                    except:
-                        confidence = 0.7
-                    
-                    processing_time = time.time() - start_time
-                    
-                    return AIResponse(
-                        content=content,
-                        confidence=confidence,
-                        model_used=f"llama_{self.model_name}",
-                        processing_time=processing_time
-                    )
-                else:
-                    raise Exception(f"Ollama API error: {response.status_code}")
+            else:
+                raise Exception(f"Ollama API error: {response.status_code}")
                     
         except Exception as e:
             self.logger.error(f"Local Llama processing failed: {e}")
             return AIResponse(
                 content="",
                 confidence=0.0,
-                model_used=f"llama_{self.model_name}",
+                model_used=self.model_name,
                 processing_time=time.time() - start_time,
                 error=str(e)
             )
@@ -706,7 +900,7 @@ Respond with JSON:
     async def enhance_research(self, query: str, context: Dict[str, Any] = None) -> AIResponse:
         """Enhance research using local Llama model."""
         import time
-        import httpx
+        import requests
         start_time = time.time()
         
         try:
@@ -725,42 +919,42 @@ Enhance this 3D printing search: {query}
 
 <|assistant|>"""
             
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    f"{self.api_base}/api/generate",
-                    json={
-                        "model": self.model_name,
-                        "prompt": prompt,
-                        "stream": False,
-                        "options": {
-                            "temperature": self.config.temperature,
-                            "num_predict": self.config.max_tokens
-                        }
-                    },
-                    timeout=self.config.timeout
+            response = await asyncio.to_thread(
+                requests.post,
+                f"{self.api_base}/api/generate",
+                json={
+                    "model": self.model_name,
+                    "prompt": prompt,
+                    "stream": False,
+                    "options": {
+                        "temperature": self.config.temperature,
+                        "num_predict": self.config.max_tokens
+                    }
+                },
+                timeout=self.config.timeout
+            )
+
+            if response.status_code == 200:
+                result = response.json()
+                content = result.get("response", query)
+
+                processing_time = time.time() - start_time
+
+                return AIResponse(
+                    content=content,
+                    confidence=0.8,
+                    model_used=self.model_name,
+                    processing_time=processing_time
                 )
-                
-                if response.status_code == 200:
-                    result = response.json()
-                    content = result.get("response", query)
-                    
-                    processing_time = time.time() - start_time
-                    
-                    return AIResponse(
-                        content=content,
-                        confidence=0.8,
-                        model_used=f"llama_{self.model_name}",
-                        processing_time=processing_time
-                    )
-                else:
-                    raise Exception(f"Ollama API error: {response.status_code}")
+            else:
+                raise Exception(f"Ollama API error: {response.status_code}")
                     
         except Exception as e:
             self.logger.error(f"Local Llama research enhancement failed: {e}")
             return AIResponse(
                 content=query,
                 confidence=0.5,
-                model_used=f"llama_{self.model_name}",
+                model_used=self.model_name,
                 processing_time=time.time() - start_time,
                 error=str(e)
             )
@@ -768,19 +962,23 @@ Enhance this 3D printing search: {query}
     def validate_connection(self) -> bool:
         """Validate local Llama connection."""
         try:
-            import httpx
-            with httpx.Client() as client:
-                response = client.post(
-                    f"{self.api_base}/api/generate",
-                    json={
-                        "model": self.model_name,
-                        "prompt": "Hello",
-                        "stream": False,
-                        "options": {"num_predict": 1}
-                    },
-                    timeout=5
-                )
-                return response.status_code == 200
+            import requests
+            response = requests.get(f"{self.api_base}/", timeout=5)
+            if response.status_code == 200:
+                return True
+
+            # Fallback simple generation check
+            response = requests.post(
+                f"{self.api_base}/api/generate",
+                json={
+                    "model": self.model_name,
+                    "prompt": "Hello",
+                    "stream": False,
+                    "options": {"num_predict": 1}
+                },
+                timeout=5
+            )
+            return response.status_code == 200
         except Exception as e:
             self.logger.error(f"Local Llama connection validation failed: {e}")
             return False
@@ -788,168 +986,483 @@ Enhance this 3D printing search: {query}
 
 class AIModelManager:
     """Manager for multiple AI model backends."""
-    
-    def __init__(self):
+
+    def __init__(
+        self,
+        config_path: Optional[Union[str, Path]] = None,
+        enable_fallback: bool = True,
+        confidence_threshold: float = 0.5
+    ):
         self.logger = AgentLogger("ai_model_manager")
-        self.models: Dict[AIModelType, BaseAIModel] = {}
-        self.default_model = AIModelType.SPACY_TRANSFORMERS
-        self.fallback_order = [
-            AIModelType.SPACY_TRANSFORMERS,
-            AIModelType.OPENAI_GPT,
-            AIModelType.ANTHROPIC_CLAUDE,
-            AIModelType.LOCAL_LLAMA
-        ]
-        
-    def register_model(self, model_type: AIModelType, config: AIModelConfig) -> bool:
-        """Register an AI model with the manager."""
+        self.models: Dict[str, BaseAIModel] = {}
+        self.model_configs: Dict[str, AIModelConfig] = {}
+        self.enable_fallback = enable_fallback
+        self.confidence_threshold = confidence_threshold
+        self.preferred_model: Optional[str] = None
+        self.default_model: Optional[str] = None
+        self.config_path = str(config_path) if config_path else None
+        self.fallback_order: List[str] = []
+        self.performance_settings: Dict[str, Any] = {}
+        self.analytics_settings: Dict[str, Any] = {}
+        self.environment_variables: Dict[str, str] = {}
+
+        if self.config_path:
+            self._load_from_config(self.config_path)
+
+        if not self.models:
+            self._register_default_spacy()
+
+    # ------------------------------------------------------------------
+    # Registration & configuration helpers
+    # ------------------------------------------------------------------
+    def register_model(self, model_identifier: Union[str, AIModelType], config: AIModelConfig) -> bool:
+        """Register an AI model with the manager.
+
+        Args:
+            model_identifier: String name or :class:`AIModelType` value.
+            config: Configuration object for the model.
+
+        Returns:
+            True if the connection validates successfully, False otherwise.
+        """
+
+        model_name = self._normalize_model_name(model_identifier) or config.model_type.value
+
         try:
-            if model_type == AIModelType.SPACY_TRANSFORMERS:
-                model = SpacyTransformersModel(config)
-            elif model_type == AIModelType.OPENAI_GPT:
-                model = OpenAIModel(config)
-            elif model_type == AIModelType.ANTHROPIC_CLAUDE:
-                model = AnthropicModel(config)
-            elif model_type == AIModelType.LOCAL_LLAMA:
-                model = LocalLlamaModel(config)
-            elif model_type == AIModelType.LOCAL_MISTRAL:
-                # Use LocalLlamaModel with Mistral configuration
-                config.model_name = config.model_name or "mistral"
-                model = LocalLlamaModel(config)
-            else:
-                self.logger.error(f"Unsupported model type: {model_type}")
-                return False
-            
-            # Validate connection
-            if model.validate_connection():
-                self.models[model_type] = model
-                self.logger.info(f"Successfully registered model: {model_type.value}")
-                return True
-            else:
-                self.logger.warning(f"Model registered but connection failed: {model_type.value}")
-                self.models[model_type] = model  # Still register for fallback
-                return False
-                
-        except Exception as e:
-            self.logger.error(f"Failed to register model {model_type.value}: {e}")
+            model = self._instantiate_model(config)
+        except Exception as exc:
+            self.logger.error(f"Failed to instantiate model {model_name}: {exc}")
             return False
-    
-    def set_default_model(self, model_type: AIModelType) -> bool:
-        """Set the default AI model to use."""
-        if model_type in self.models:
-            self.default_model = model_type
-            self.logger.info(f"Default model set to: {model_type.value}")
-            return True
+
+        self.models[model_name] = model
+        self.model_configs[model_name] = config
+
+        if model_name not in self.fallback_order:
+            self.fallback_order.append(model_name)
+
+        available = False
+        try:
+            available = model.validate_connection()
+        except Exception as exc:  # pragma: no cover - defensive logging
+            self.logger.error(f"Validation error for model {model_name}: {exc}")
+
+        if available:
+            self.logger.info(f"Successfully registered model: {model_name}")
         else:
-            self.logger.error(f"Cannot set default to unregistered model: {model_type.value}")
+            self.logger.warning(f"Model registered but validation failed: {model_name}")
+
+        if not self.default_model and config.enabled:
+            self.default_model = model_name
+
+        return available
+
+    def set_default_model(self, model_identifier: Union[str, AIModelType]) -> bool:
+        """Set the default AI model used for processing."""
+        model_name = self._normalize_model_name(model_identifier)
+        if not model_name or model_name not in self.models:
+            self.logger.error(f"Cannot set default to unknown model: {model_identifier}")
             return False
-    
-    async def process_intent(self, user_input: str, context: Dict[str, Any] = None, 
-                           preferred_model: Optional[AIModelType] = None) -> AIResponse:
-        """Process intent using preferred model with fallback."""
-        
-        # Determine which model to try first
-        model_order = []
-        if preferred_model and preferred_model in self.models:
-            model_order.append(preferred_model)
-        
-        if self.default_model in self.models and self.default_model not in model_order:
-            model_order.append(self.default_model)
-        
-        # Add fallback models
-        for model_type in self.fallback_order:
-            if model_type in self.models and model_type not in model_order:
-                model_order.append(model_type)
-        
-        # Try models in order
-        last_error = None
-        for model_type in model_order:
+
+        self.default_model = model_name
+        self.logger.info(f"Default model set to: {model_name}")
+        return True
+
+    def set_preferred_model(self, model_identifier: Union[str, AIModelType]) -> None:
+        """Set the preferred model name (raises if unavailable)."""
+        model_name = self._normalize_model_name(model_identifier)
+        if not model_name or model_name not in self.models:
+            raise ValueError(f"Unknown AI model: {model_identifier}")
+        self.preferred_model = model_name
+
+    # ------------------------------------------------------------------
+    # Analysis & research helpers
+    # ------------------------------------------------------------------
+    async def process_intent(
+        self,
+        user_input: str,
+        context: Optional[Dict[str, Any]] = None,
+        preferred_model: Optional[Union[str, AIModelType]] = None
+    ) -> AIResponse:
+        """Process intent using the preferred model with optional fallback."""
+
+        context = context or {}
+        candidates = self._build_candidate_sequence(preferred_model)
+
+        if not candidates:
+            return AIResponse(
+                content="",
+                confidence=0.0,
+                model_used="none_available",
+                processing_time=0.0,
+                success=False,
+                error_message="No AI models available"
+            )
+
+        last_error: Optional[str] = None
+
+        for name in candidates:
+            config = self.model_configs.get(name)
+            if config and not config.enabled:
+                continue
+
+            model = self.models.get(name)
+            if not model:
+                continue
+
             try:
-                model = self.models[model_type]
                 response = await model.process_intent(user_input, context)
-                
-                if response.error is None and response.confidence > 0.3:
-                    self.logger.info(f"Intent processed successfully with {model_type.value}")
-                    return response
-                else:
-                    last_error = response.error or "Low confidence response"
-                    self.logger.warning(f"Model {model_type.value} failed: {last_error}")
-                    
-            except Exception as e:
-                last_error = str(e)
-                self.logger.error(f"Error with model {model_type.value}: {e}")
-        
-        # All models failed
-        self.logger.error("All AI models failed for intent processing")
+            except Exception as exc:
+                last_error = str(exc)
+                self.logger.error(f"Intent processing failed for {name}: {exc}")
+                if not self.enable_fallback:
+                    break
+                continue
+
+            if not response.model_used:
+                response.model_used = name
+
+            if response.error or response.error_message:
+                last_error = response.error_message or response.error
+                self.logger.warning(f"Model {name} returned error: {last_error}")
+                if not self.enable_fallback:
+                    break
+                continue
+
+            response.success = response.confidence >= self.confidence_threshold
+            if response.success:
+                self.logger.info(f"Intent processed successfully with {name}")
+                return response
+
+            last_error = f"Low confidence response ({response.confidence:.2f})"
+            self.logger.warning(f"Model {name} produced low confidence output")
+            if not self.enable_fallback:
+                break
+
         return AIResponse(
             content="",
             confidence=0.0,
             model_used="none_available",
             processing_time=0.0,
-            error=f"All models failed. Last error: {last_error}"
+            success=False,
+            error_message=f"All models failed. Last error: {last_error}"
         )
-    
-    async def enhance_research(self, query: str, context: Dict[str, Any] = None,
-                             preferred_model: Optional[AIModelType] = None) -> AIResponse:
-        """Enhance research using preferred model with fallback."""
-        
-        # Determine which model to try first
-        model_order = []
-        if preferred_model and preferred_model in self.models:
-            model_order.append(preferred_model)
-        
-        if self.default_model in self.models and self.default_model not in model_order:
-            model_order.append(self.default_model)
-        
-        # Add fallback models
-        for model_type in self.fallback_order:
-            if model_type in self.models and model_type not in model_order:
-                model_order.append(model_type)
-        
-        # Try models in order
-        last_error = None
-        for model_type in model_order:
+
+    async def enhance_research(
+        self,
+        query: str,
+        context: Optional[Dict[str, Any]] = None,
+        preferred_model: Optional[Union[str, AIModelType]] = None
+    ) -> AIResponse:
+        """Enhance research query using preferred model with fallback."""
+
+        context = context or {}
+        candidates = self._build_candidate_sequence(preferred_model)
+
+        if not candidates:
+            return AIResponse(
+                content=query,
+                confidence=0.5,
+                model_used="fallback",
+                processing_time=0.0,
+                success=False,
+                error_message="No AI models available"
+            )
+
+        last_error: Optional[str] = None
+
+        for name in candidates:
+            config = self.model_configs.get(name)
+            if config and not config.enabled:
+                continue
+
+            model = self.models.get(name)
+            if not model:
+                continue
+
             try:
-                model = self.models[model_type]
                 response = await model.enhance_research(query, context)
-                
-                if response.error is None:
-                    self.logger.info(f"Research enhanced successfully with {model_type.value}")
-                    return response
-                else:
-                    last_error = response.error
-                    self.logger.warning(f"Model {model_type.value} failed: {last_error}")
-                    
-            except Exception as e:
-                last_error = str(e)
-                self.logger.error(f"Error with model {model_type.value}: {e}")
-        
-        # All models failed, return original query
-        self.logger.warning("All AI models failed for research enhancement, using original query")
+            except Exception as exc:
+                last_error = str(exc)
+                self.logger.error(f"Research enhancement failed for {name}: {exc}")
+                if not self.enable_fallback:
+                    break
+                continue
+
+            if not response.model_used:
+                response.model_used = name
+
+            if response.error or response.error_message:
+                last_error = response.error_message or response.error
+                self.logger.warning(f"Model {name} returned error during research: {last_error}")
+                if not self.enable_fallback:
+                    break
+                continue
+
+            self.logger.info(f"Research enhanced successfully with {name}")
+            return response
+
         return AIResponse(
             content=query,
             confidence=0.5,
             model_used="fallback",
             processing_time=0.0,
-            error=f"All models failed. Last error: {last_error}"
+            success=False,
+            error_message=f"All models failed. Last error: {last_error}"
         )
-    
-    def get_available_models(self) -> List[Dict[str, Any]]:
-        """Get list of available models with their status."""
-        models_info = []
-        for model_type, model in self.models.items():
-            models_info.append({
-                "type": model_type.value,
-                "name": model_type.value.replace("_", " ").title(),
-                "available": model.validate_connection(),
-                "is_default": model_type == self.default_model
-            })
-        return models_info
-    
+
+    def analyze_request(
+        self,
+        request_text: str,
+        context: Optional[Dict[str, Any]] = None,
+        analysis_depth: str = "standard",
+        preferred_model: Optional[Union[str, AIModelType]] = None
+    ) -> AIResponse:
+        """Synchronous interface mirroring :meth:`process_intent`."""
+
+        candidates = self._build_candidate_sequence(preferred_model)
+        if not candidates:
+            return AIResponse(
+                content="",
+                confidence=0.0,
+                model_used="none_available",
+                processing_time=0.0,
+                success=False,
+                error_message="No AI models available"
+            )
+
+        last_error: Optional[str] = None
+        context = context or {}
+
+        for name in candidates:
+            config = self.model_configs.get(name)
+            if config and not config.enabled:
+                continue
+
+            model = self.models.get(name)
+            if not model:
+                continue
+
+            try:
+                response = model.analyze_request(request_text, context, analysis_depth)
+            except Exception as exc:
+                last_error = str(exc)
+                self.logger.error(f"Analyze request failed for {name}: {exc}")
+                if not self.enable_fallback:
+                    break
+                continue
+
+            if not response.model_used:
+                response.model_used = name
+
+            if response.error or response.error_message:
+                last_error = response.error_message or response.error
+                self.logger.warning(f"Model {name} returned error: {last_error}")
+                if not self.enable_fallback:
+                    break
+                continue
+
+            if response.confidence < self.confidence_threshold:
+                last_error = f"Low confidence response ({response.confidence:.2f})"
+                self.logger.warning(f"Model {name} produced low confidence output")
+                if not self.enable_fallback:
+                    break
+                continue
+
+            response.success = True
+            return response
+
+        return AIResponse(
+            content="",
+            confidence=0.0,
+            model_used="none_available",
+            processing_time=0.0,
+            success=False,
+            error_message=f"AI model analysis failed: {last_error}"
+        )
+
+    # ------------------------------------------------------------------
+    # Introspection helpers
+    # ------------------------------------------------------------------
+    def get_available_models(self) -> List[str]:
+        """Return a list of registered (and enabled) model names."""
+        return [
+            name for name, cfg in self.model_configs.items()
+            if cfg.enabled and name in self.models
+        ]
+
     def get_model_stats(self) -> Dict[str, Any]:
-        """Get statistics about model usage and performance."""
+        """Return a compact status dictionary used by diagnostics."""
         return {
             "total_models": len(self.models),
-            "default_model": self.default_model.value,
-            "available_models": [mt.value for mt in self.models.keys()],
-            "fallback_order": [mt.value for mt in self.fallback_order if mt in self.models]
+            "available_models": self.get_available_models(),
+            "preferred_model": self.preferred_model,
+            "default_model": self.default_model,
+            "fallback_order": list(self.fallback_order),
+            "enable_fallback": self.enable_fallback,
+            "confidence_threshold": self.confidence_threshold
         }
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+    def _normalize_model_name(self, identifier: Optional[Union[str, AIModelType]]) -> Optional[str]:
+        if identifier is None:
+            return None
+        if isinstance(identifier, AIModelType):
+            return identifier.value
+        if isinstance(identifier, str):
+            return identifier
+        return None
+
+    def _instantiate_model(self, config: AIModelConfig) -> BaseAIModel:
+        model_type = config.model_type
+        if model_type == AIModelType.SPACY_TRANSFORMERS:
+            return SpacyTransformersModel(config)
+        if model_type == AIModelType.OPENAI_GPT:
+            return OpenAIModel(config)
+        if model_type == AIModelType.ANTHROPIC_CLAUDE:
+            return AnthropicModel(config)
+        if model_type in (AIModelType.LOCAL_LLAMA, AIModelType.LOCAL_MISTRAL):
+            if model_type == AIModelType.LOCAL_MISTRAL and not config.model_name:
+                config.model_name = "mistral"
+            return LocalLlamaModel(config)
+        raise ValueError(f"Unsupported model type: {model_type}")
+
+    def _build_candidate_sequence(self, preferred: Optional[Union[str, AIModelType]]) -> List[str]:
+        order: List[str] = []
+        preferred_name = self._normalize_model_name(preferred)
+
+        if preferred_name and preferred_name in self.models:
+            order.append(preferred_name)
+
+        if self.preferred_model and self.preferred_model not in order and self.preferred_model in self.models:
+            order.append(self.preferred_model)
+
+        if self.default_model and self.default_model not in order and self.default_model in self.models:
+            order.append(self.default_model)
+
+        for name in self.fallback_order:
+            if name in self.models and name not in order:
+                order.append(name)
+
+        for name in self.models.keys():
+            if name not in order:
+                order.append(name)
+
+        return order
+
+    def _load_from_config(self, config_path: Union[str, Path]) -> None:
+        try:
+            with open(config_path, "r", encoding="utf-8") as handle:
+                data = yaml.safe_load(handle) or {}
+        except FileNotFoundError:
+            self.logger.warning(f"AI model config not found: {config_path}")
+            return
+        except Exception as exc:  # pragma: no cover - defensive logging
+            self.logger.error(f"Failed to load AI model config: {exc}")
+            return
+
+        ai_section = data.get("ai_models", {})
+
+        models_cfg: Dict[str, Dict[str, Any]]
+        fallback_cfg: Dict[str, Any] = {}
+        performance_cfg: Dict[str, Any] = {}
+
+        if isinstance(ai_section, dict) and "models" in ai_section:
+            models_cfg = ai_section.get("models", {})
+            fallback_cfg = ai_section.get("fallback", {}) or {}
+            performance_cfg = ai_section.get("performance", {}) or {}
+            configured_default = ai_section.get("default_model")
+            if configured_default:
+                self.default_model = configured_default
+        else:
+            models_cfg = ai_section or {}
+            configured_default = None
+
+        settings = data.get("settings", {})
+        self.enable_fallback = fallback_cfg.get("auto_fallback", settings.get("enable_fallback", self.enable_fallback))
+        self.confidence_threshold = fallback_cfg.get(
+            "min_confidence",
+            settings.get("confidence_threshold", self.confidence_threshold)
+        )
+
+        self.performance_settings = performance_cfg
+        self.analytics_settings = data.get("analytics", {}) or {}
+
+        env_mapping = data.get("environment_variables", {}) or {}
+        if isinstance(env_mapping, dict):
+            self.environment_variables = {str(k): str(v) for k, v in env_mapping.items()}
+
+        requested_fallback_order = fallback_cfg.get("order", [])
+        self.fallback_order = [str(item) for item in requested_fallback_order if isinstance(item, str)]
+
+        ordered_entries = sorted(
+            models_cfg.items(),
+            key=lambda item: item[1].get("priority", 100)
+        )
+
+        def _populate_from_env(model_type: AIModelType, config: AIModelConfig) -> None:
+            if not self.environment_variables:
+                return
+
+            if model_type == AIModelType.OPENAI_GPT:
+                env_key = self.environment_variables.get("openai_api_key")
+                if env_key and not config.api_key:
+                    config.api_key = os.getenv(env_key) or config.api_key
+            elif model_type == AIModelType.ANTHROPIC_CLAUDE:
+                env_key = self.environment_variables.get("anthropic_api_key")
+                if env_key and not config.api_key:
+                    config.api_key = os.getenv(env_key) or config.api_key
+            elif model_type in (AIModelType.LOCAL_LLAMA, AIModelType.LOCAL_MISTRAL):
+                env_key = self.environment_variables.get("local_api_base")
+                if env_key:
+                    env_value = os.getenv(env_key)
+                    if env_value:
+                        config.api_base = env_value
+                        config.api_url = env_value
+
+        for name, cfg in ordered_entries:
+            model_type_str = cfg.get("type", name)
+            try:
+                model_type = AIModelType(model_type_str)
+            except ValueError:
+                self.logger.warning(f"Unknown model type '{model_type_str}' in config; skipping")
+                continue
+
+            config = AIModelConfig(
+                model_type=model_type,
+                api_key=cfg.get("api_key"),
+                api_base=cfg.get("api_base"),
+                api_url=cfg.get("api_url"),
+                model_name=cfg.get("model_name"),
+                max_tokens=cfg.get("max_tokens", 1000),
+                temperature=cfg.get("temperature", 0.7),
+                timeout=cfg.get("timeout", 30),
+                enabled=cfg.get("enabled", True),
+                config_path=str(config_path),
+                additional_params=cfg.get("additional_params") or {}
+            )
+
+            _populate_from_env(model_type, config)
+
+            self.model_configs[name] = config
+
+            if config.enabled:
+                if name not in self.fallback_order:
+                    self.fallback_order.append(name)
+                self.register_model(name, config)
+            else:
+                self.logger.info(f"Model '{name}' disabled in configuration; skipping registration")
+
+        if configured_default and configured_default in self.models:
+            self.default_model = configured_default
+        elif self.fallback_order:
+            self.default_model = self.fallback_order[0]
+
+    def _register_default_spacy(self) -> None:
+        config = AIModelConfig(model_type=AIModelType.SPACY_TRANSFORMERS, model_name="en_core_web_sm")
+        self.register_model("spacy_transformers", config)
+        if not self.fallback_order:
+            self.fallback_order.append("spacy_transformers")
+        if not self.default_model:
+            self.default_model = "spacy_transformers"

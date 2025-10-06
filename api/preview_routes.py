@@ -6,13 +6,15 @@ including STL visualization, G-code analysis, and layer preview generation.
 """
 
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends
-from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi.responses import StreamingResponse, JSONResponse, FileResponse
 from pathlib import Path
 import tempfile
 import io
 import base64
 import json
-from typing import Optional
+import time
+import os
+from typing import Optional, List
 
 from core.print_preview import PrintPreviewManager
 from core.logger import get_logger
@@ -418,3 +420,30 @@ async def health_check():
     except Exception as e:
         logger.error(f"Health check failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/{filename}")
+async def get_preview_image(filename: str):
+    """Serve demo preview images"""
+    try:
+        # Security: Only allow specific demo files
+        allowed_files = ["demo_001.png", "demo_002.png"]
+        if filename not in allowed_files:
+            raise HTTPException(status_code=404, detail="Preview image not found")
+        
+        # Construct file path
+        preview_path = Path("data/preview") / filename
+        
+        if not preview_path.exists():
+            raise HTTPException(status_code=404, detail="Preview image not found")
+        
+        return FileResponse(
+            path=str(preview_path),
+            media_type="image/png",
+            headers={"Cache-Control": "public, max-age=3600"}
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error serving preview image {filename}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")

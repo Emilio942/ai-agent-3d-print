@@ -1,84 +1,22 @@
 [
   {
-    "id": "564add59-dfa1-4eaa-8998-b4e4ec5d6909",
-    "name": "Customizable Gear",
-    "description": "A parametric gear that can be customized for different applications",
+    "id": "896af403-ce52-40a2-b646-b8f187d4b95e",
+    "name": "Simple Gear",
+    "description": "A basic gear template",
     "category": "mechanical",
-    "difficulty": "intermediate",
-    "parameters": [
-      {
-        "name": "teeth",
-        "display_name": "Number of Teeth",
-        "parameter_type": "number",
-        "default_value": 20,
-        "min_value": 8,
-        "max_value": 100,
-        "choices": null,
-        "unit": "teeth",
-        "description": null
-      },
-      {
-        "name": "module",
-        "display_name": "Module (Tooth Size)",
-        "parameter_type": "number",
-        "default_value": 2.0,
-        "min_value": 0.5,
-        "max_value": 10.0,
-        "choices": null,
-        "unit": "mm",
-        "description": null
-      },
-      {
-        "name": "thickness",
-        "display_name": "Gear Thickness",
-        "parameter_type": "number",
-        "default_value": 5.0,
-        "min_value": 2.0,
-        "max_value": 20.0,
-        "choices": null,
-        "unit": "mm",
-        "description": null
-      },
-      {
-        "name": "bore_diameter",
-        "display_name": "Center Hole Diameter",
-        "parameter_type": "number",
-        "default_value": 6.0,
-        "min_value": 0.0,
-        "max_value": 50.0,
-        "choices": null,
-        "unit": "mm",
-        "description": null
-      },
-      {
-        "name": "pressure_angle",
-        "display_name": "Pressure Angle",
-        "parameter_type": "choice",
-        "default_value": "20\u00b0",
-        "min_value": null,
-        "max_value": null,
-        "choices": [
-          "14.5\u00b0",
-          "20\u00b0",
-          "25\u00b0"
-        ],
-        "unit": null,
-        "description": null
-      }
-    ],
-    "preview_image": "/templates/previews/564add59-dfa1-4eaa-8998-b4e4ec5d6909.png",
-    "model_file": "/templates/models/564add59-dfa1-4eaa-8998-b4e4ec5d6909.stl",
+    "difficulty": "beginner",
+    "parameters": [],
+    "preview_image": "/templates/previews/gear.png",
+    "model_file": "/templates/models/gear.stl",
     "tags": [
       "gear",
-      "mechanical",
-      "parametric",
-      "functional"
+      "mechanical"
     ],
     "author": "AI Agent System",
-    "created_at": "2025-06-18T14:28:29.535518",
-    "updated_at": "2025-06-18T14:28:29.535521",
-    "usage_count": 0,
-    "rating": 0.0,
+    "created_at": "2025-10-05T12:27:00.568198",
+    "updated_at": "2025-10-05T12:27:00.568200",
+    "usage_count": 11,
+    "rating": 4.5,
     "rating_count": 0,
     "print_time_estimate": 45,
     "material_estimate": 15.0

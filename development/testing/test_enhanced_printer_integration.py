@@ -4,17 +4,19 @@ Test Enhanced Printer Agent Integration
 Direct test to validate multi-printer support integration
 """
 
-import asyncio
 import sys
 import os
+import asyncio
+import pytest
 
 # Add project root to path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # Test direct multi-printer support
 from multi_printer_support import MultiPrinterDetector, PrinterProfileManager
-from printer_emulator import PrinterEmulatorManager
+from printer_support.printer_emulator import PrinterEmulatorManager
 
+@pytest.mark.asyncio
 async def test_enhanced_integration():
     """Test the enhanced printer support integration."""
     print("🚀 AI Agent 3D Print - Enhanced Printer Integration Test")

@@ -7,16 +7,18 @@ pydantic==2.5.0
 pydantic-settings==2.1.0
 
 # NLP & AI
-spacy==3.7.2
+spacy>=3.8.0,<4.0
 transformers==4.36.0
-torch==2.1.0
-numpy==1.24.3
+torch>=2.7.0,<3.0
+numpy>=1.26.0,<2.0
 scikit-learn==1.3.2  # For AI design analysis
 pandas==2.1.4  # For data analysis and historical tracking
 joblib==1.3.2  # For model persistence
+# openai consolidated below in Multi-AI Model Support section
 
 # CAD & 3D Processing
-FreeCAD==0.21.0  # Note: May need conda or specific installation method
+# FreeCAD wird separat installiert (pip-Paket für Python 3.12 nicht verfügbar)
+# FreeCAD==0.21.0  # Note: install via conda/AppImage per deployment docs
 trimesh==4.6.11
 numpy-stl==3.0.1
 manifold3d==3.1.1
@@ -24,8 +26,8 @@ scipy==1.15.3
 scikit-image==0.25.2
 
 # Computer Vision & Image Processing
-opencv-python==4.8.1
-opencv-contrib-python==4.8.1
+opencv-python>=4.11.0.86,<5.0
+opencv-contrib-python>=4.11.0.86,<5.0
 
 # Hardware Communication
 pyserial==3.5
@@ -43,7 +45,7 @@ aiosqlite==0.19.0
 python-json-logger==2.0.7
 
 # CLI & Utilities
-click==8.1.7
+click>=8.1.8,<9.0
 rich==13.7.0
 loguru==0.7.2
 
@@ -53,16 +55,14 @@ aiofiles==23.2.1
 python-multipart==0.0.6
 
 # Development & Testing
-pytest==7.4.3
-pytest-asyncio==0.21.1
+pytest>=8.2.0,<9.0
+pytest-asyncio>=1.0.0
 pytest-cov==4.1.0
 pytest-mock==3.12.0
 black==23.11.0
 mypy==1.7.0
 
 # API Testing
-websockets==12.0
-httpx==0.25.2
 pre-commit==3.5.0
 flake8==6.1.0
 
@@ -86,9 +86,8 @@ timm==1.0.15  # Model support for MiDaS/DPT
 open3d==0.19.0  # Point cloud and mesh processing
 
 # Multi-AI Model Support (Aufgabe 8)
-openai==1.3.7  # OpenAI GPT models
+openai==1.88.0  # OpenAI GPT models (consolidated version)
 anthropic==0.8.1  # Anthropic Claude models
-httpx==0.25.2  # For local model API calls (already included above)
 diskcache==5.6.3  # Enhanced caching for AI responses
 
 # Platform-specific dependencies (uncomment as needed)

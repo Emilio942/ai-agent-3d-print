@@ -47,6 +47,20 @@ try:
 except ImportError:
     SKIMAGE_AVAILABLE = False
 
+# Optional geometry backends for performance/robustness
+try:
+    import shapely.geometry as sgeom  # type: ignore
+    import shapely.ops as sops  # type: ignore
+    SHAPELY_AVAILABLE = True
+except Exception:
+    SHAPELY_AVAILABLE = False
+
+try:
+    import open3d as o3d
+    OPEN3D_AVAILABLE = True
+except Exception:
+    OPEN3D_AVAILABLE = False
+
 # Core System Imports
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -124,6 +138,38 @@ class CADAgent(BaseAgent):
         else:
             self.cad_backend = "trimesh"
             self.logger.info("Using trimesh backend (FreeCAD not available)")
+
+    @staticmethod
+    def _clean_trimesh(mesh: Optional[trimesh.Trimesh], *, fix_normals: bool = True) -> None:
+        """Utility to deduplicate faces, drop degenerates, and fix normals."""
+        if mesh is None:
+            return
+        try:
+            mask = mesh.unique_faces()
+            if mask is not None and len(mask) == len(mesh.faces):
+                mesh.update_faces(mask)
+        except Exception:
+            try:
+                trimesh.repair.remove_duplicate_faces(mesh)
+            except Exception:
+                pass
+
+        try:
+            trimesh.repair.remove_degenerate_faces(mesh)
+        except Exception:
+            pass
+
+        try:
+            mesh.remove_unreferenced_vertices()
+        except Exception:
+            pass
+
+        if fix_normals:
+            try:
+                trimesh.repair.fix_normals(mesh)
+            except Exception:
+                if hasattr(mesh, "fix_normals"):
+                    mesh.fix_normals()
 
     async def execute_task(self, task_data: Dict[str, Any]) -> TaskResult:
         """
@@ -259,6 +305,8 @@ class CADAgent(BaseAgent):
         return {
             'model_file': mesh_file_path,
             'stl_file': mesh_file_path,  # For backward compatibility
+            'model_file_path': mesh_file_path,
+            'stl_file_path': mesh_file_path,
             'model_format': 'stl',
             'dimensions': dimensions,
             'volume': volume,
@@ -275,11 +323,11 @@ class CADAgent(BaseAgent):
         }
 
     async def _create_from_image_task(self, task_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Create 3D model from image using a simple grayscale heightmap approach."""
+        """Create 3D model from image using a grayscale heightmap with safety/material controls."""
         import os, tempfile, numpy as np, trimesh
         from PIL import Image
         import cv2
-        
+
         # Bildpfad extrahieren
         image_path = task_data.get('image_path')
         if not image_path:
@@ -287,87 +335,103 @@ class CADAgent(BaseAgent):
             image_path = specs.get('image_path')
         if not image_path or not os.path.exists(image_path):
             raise ValidationError(f"Image file not found: {image_path}")
-        
+
         self.logger.info(f"🖼️ Starte Bild-zu-3D-Konvertierung: {image_path}")
-        
+
         # Bild laden
         cv_image = cv2.imread(image_path)
         if cv_image is None:
             raise ValidationError(f"Could not load image: {image_path}")
         gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
-        
+
+        # Material- und Sicherheitsparameter
+        material = str(task_data.get('material', 'PLA')).upper()
+        material_densities = {'PLA': 1.24, 'PETG': 1.27, 'ABS': 1.04}
+        material_density = material_densities.get(material, self.material_density)
+        enforce_safety = bool(task_data.get('enforce_safety', True))
+        pixel_size_mm = float(task_data.get('pixel_size_mm', 0.5))
+        max_size_cfg = int(task_data.get('max_size', 128))
+        max_size_cfg = max(32, min(max_size_cfg, 512))
+
         # Heightmap erzeugen
         height_scale = float(task_data.get('height_scale', 5.0))
         base_thickness = float(task_data.get('base_thickness', 2.0))
+        if enforce_safety and base_thickness < self.min_wall_thickness:
+            self.logger.info(f"Erhöhe base_thickness auf Mindestwandstärke {self.min_wall_thickness}mm")
+            base_thickness = self.min_wall_thickness
         height_map = (gray.astype(np.float32) / 255.0) * height_scale + base_thickness
-        
-        # Größe begrenzen
-        max_size = 128
+
+        # Größe begrenzen (konfigurierbar)
         h, w = height_map.shape
-        if max(h, w) > max_size:
-            scale = max_size / max(h, w)
-            height_map = cv2.resize(height_map, (int(w*scale), int(h*scale)))
+        if max(h, w) > max_size_cfg:
+            scale = max_size_cfg / max(h, w)
+            height_map = cv2.resize(height_map, (int(w * scale), int(h * scale)))
             h, w = height_map.shape
-        
-        x = np.linspace(0, w-1, w) * 0.5
-        y = np.linspace(0, h-1, h) * 0.5
+
+        # Pixelmaßstab in mm
+        x = np.linspace(0, w - 1, w) * pixel_size_mm
+        y = np.linspace(0, h - 1, h) * pixel_size_mm
         xx, yy = np.meshgrid(x, y)
-        vertices = np.column_stack((xx.flatten(), yy.flatten(), height_map.flatten()))
-        
-        faces = []
-        for i in range(h-1):
-            for j in range(w-1):
-                v0 = i * w + j
-                v1 = i * w + (j + 1)
-                v2 = (i + 1) * w + j
-                v3 = (i + 1) * w + (j + 1)
-                faces.append([v0, v1, v2])
-                faces.append([v1, v3, v2])
-        
-        faces = np.array(faces)
-        mesh = trimesh.Trimesh(vertices=vertices, faces=faces)
-        mesh.remove_degenerate_faces()
-        mesh.remove_duplicate_faces()
-        mesh.remove_unreferenced_vertices()
-        
+
+        # Vertices/Faces vektorisiert
+        vertices = np.column_stack((xx.ravel(), yy.ravel(), height_map.ravel())).astype(np.float32)
+        idx_grid = np.arange(h * w, dtype=np.int32).reshape(h, w)
+        tl = idx_grid[:-1, :-1].ravel()
+        tr = idx_grid[:-1, 1:].ravel()
+        bl = idx_grid[1:, :-1].ravel()
+        br = idx_grid[1:, 1:].ravel()
+        faces = np.vstack((
+            np.column_stack((tl, tr, bl)),
+            np.column_stack((tr, br, bl))
+        )).astype(np.int32)
+
+        mesh = trimesh.Trimesh(vertices=vertices, faces=faces, process=False)
+        self._clean_trimesh(mesh)
+
         # Base hinzufügen
         bounds = mesh.bounds
         base_z = bounds[0][2] - 0.1
-        base_vertices = [
+        base_vertices = np.array([
             [bounds[0][0], bounds[0][1], base_z],
             [bounds[1][0], bounds[0][1], base_z],
             [bounds[1][0], bounds[1][1], base_z],
             [bounds[0][0], bounds[1][1], base_z],
-        ]
+        ], dtype=np.float32)
         base_start_idx = len(mesh.vertices)
-        all_vertices = np.vstack([mesh.vertices, base_vertices])
-        base_faces = [
+        all_vertices = np.vstack((mesh.vertices, base_vertices))
+        base_faces = np.array([
             [base_start_idx, base_start_idx + 1, base_start_idx + 2],
             [base_start_idx, base_start_idx + 2, base_start_idx + 3]
-        ]
-        all_faces = np.vstack([mesh.faces, base_faces])
-        final_mesh = trimesh.Trimesh(vertices=all_vertices, faces=all_faces)
-        final_mesh.remove_degenerate_faces()
-        final_mesh.remove_duplicate_faces()
-        final_mesh.remove_unreferenced_vertices()
-        
-        volume = float(final_mesh.volume)
-        material_volume_cm3 = volume / 1000
-        material_weight_g = material_volume_cm3 * self.material_density
-        
-        # Generate temporary file path for the mesh
+        ], dtype=np.int32)
+        all_faces = np.vstack((mesh.faces, base_faces))
+
+        final_mesh = trimesh.Trimesh(vertices=all_vertices, faces=all_faces, process=False)
+
+        self._clean_trimesh(final_mesh)
+        final_mesh.rezero()
+
+        if final_mesh.volume is not None and final_mesh.volume < 0:
+            final_mesh.invert()
+            self._clean_trimesh(final_mesh)
+
+        bounds = final_mesh.bounds
+        volume = abs(float(final_mesh.volume)) if final_mesh.volume is not None else 0.0
+        material_volume_cm3 = volume / 1000.0
+        material_weight_g = material_volume_cm3 * material_density
+
+        # STL export
         temp_file = tempfile.NamedTemporaryFile(suffix='.stl', delete=False)
         mesh_file_path = temp_file.name
         temp_file.close()
-        
-        # Export mesh to STL
         final_mesh.export(mesh_file_path)
-        
+
         self.logger.info(f"✅ Bild-zu-3D abgeschlossen: {len(final_mesh.vertices)} Vertices, {len(final_mesh.faces)} Faces")
-        
+
         return {
             'model_file': mesh_file_path,
-            'stl_file': mesh_file_path,  # For backward compatibility
+            'stl_file': mesh_file_path,
+            'model_file_path': mesh_file_path,
+            'stl_file_path': mesh_file_path,
             'geometry_type': 'image_conversion',
             'source_image': image_path,
             'dimensions': {
@@ -382,12 +446,18 @@ class CADAgent(BaseAgent):
             'material_usage': {
                 'volume_cm3': round(material_volume_cm3, 2),
                 'weight_g': round(material_weight_g, 2),
-                'material_type': 'PLA'
+                'material_type': material
             },
             'mesh_info': {
                 'is_watertight': final_mesh.is_watertight,
                 'surface_area': float(final_mesh.area),
                 'bounds': bounds.tolist()
+            },
+            'safety': {
+                'min_wall_thickness_mm': self.min_wall_thickness,
+                'base_thickness_mm': base_thickness,
+                'enforce_safety': enforce_safety,
+                'pixel_size_mm': pixel_size_mm
             }
         }
     
@@ -805,7 +875,11 @@ class CADAgent(BaseAgent):
             if self.cad_backend == "freecad":
                 return self._create_from_contours_freecad(contours_3d, extrusion_height, base_thickness)
             else:
-                return self._create_from_contours_trimesh(contours_3d, extrusion_height, base_thickness)
+                # Prefer robust Shapely+trimesh extrusion if available, fallback to legacy
+                if SHAPELY_AVAILABLE:
+                    return self._create_from_contours_shapely_trimesh(contours_3d, extrusion_height, base_thickness)
+                else:
+                    return self._create_from_contours_trimesh(contours_3d, extrusion_height, base_thickness)
                 
         except Exception as e:
             self.logger.error(f"Failed to create model from contours: {e}")
@@ -912,6 +986,60 @@ class CADAgent(BaseAgent):
             # Return fallback cube
             fallback_mesh = trimesh.creation.box(extents=[10, 10, extrusion_height + base_thickness])
             return fallback_mesh, 1000.0
+
+    def _create_from_contours_shapely_trimesh(self, contours_3d: List[Dict[str, Any]],
+                                              extrusion_height: float, base_thickness: float) -> Tuple[Any, float]:
+        """Create 3D model from contours using Shapely union + trimesh.extrude_polygon for robustness and speed."""
+        total_height = extrusion_height + base_thickness
+        try:
+            polygons = []
+            for i, contour_data in enumerate(contours_3d):
+                pts = contour_data.get('points') or []
+                if not pts or len(pts) < 3:
+                    self.logger.warning(f"Skipping contour {i}: insufficient points")
+                    continue
+                try:
+                    poly = sgeom.Polygon(pts)
+                    if not poly.is_valid:
+                        poly = poly.buffer(0)  # fix minor self-intersections
+                    if poly.is_empty:
+                        continue
+                    polygons.append(poly)
+                except Exception as pe:
+                    self.logger.warning(f"Invalid polygon at contour {i}: {pe}")
+                    continue
+
+            if not polygons:
+                self.logger.warning("No valid polygons created, using fallback cube")
+                fallback_mesh = trimesh.creation.box(extents=[10, 10, total_height])
+                return fallback_mesh, 1000.0
+
+            # Merge overlapping/adjacent polygons
+            merged = sops.unary_union(polygons) if len(polygons) > 1 else polygons[0]
+
+            # Handle MultiPolygon
+            def extrude_poly(p) -> trimesh.Trimesh:
+                return trimesh.creation.extrude_polygon(p, height=total_height)
+
+            if merged.geom_type == 'MultiPolygon':
+                meshes = [extrude_poly(p) for p in merged.geoms]
+                final_mesh = trimesh.util.concatenate(meshes)
+            else:
+                final_mesh = extrude_poly(merged)
+
+            # Ensure normals, compute volume
+            self._clean_trimesh(final_mesh)
+
+            total_volume = abs(float(final_mesh.volume)) if hasattr(final_mesh, 'volume') else 0.0
+            if total_volume < 1.0:
+                total_volume = 100.0
+
+            self.logger.info(
+                f"Created 3D model from {len(polygons)} contours (Shapely): volume {total_volume:.2f}mm³")
+            return final_mesh, total_volume
+        except Exception as e:
+            self.logger.warning(f"Shapely extrusion failed, falling back to legacy: {e}")
+            return self._create_from_contours_trimesh(contours_3d, extrusion_height, base_thickness)
     
     def _create_from_contours_freecad(self, contours_3d: List[Dict[str, Any]], 
                                     extrusion_height: float, base_thickness: float) -> Tuple[Any, float]:
@@ -1310,7 +1438,19 @@ class CADAgent(BaseAgent):
         try:
             self.logger.debug(f"Performing {operation_type} operation")
             
-            # Primary method: Use trimesh boolean operations
+            # Primary method: Use Open3D boolean (fast/robust) if available
+            try:
+                if OPEN3D_AVAILABLE:
+                    result = self._open3d_boolean_operation(mesh_a, mesh_b, operation_type)
+                    if self._is_valid_mesh_result(result):
+                        self.logger.debug(f"Primary Open3D boolean {operation_type} succeeded")
+                        return result
+                    else:
+                        raise BooleanOperationError("Open3D returned invalid result")
+            except Exception as e:
+                self.logger.warning(f"Open3D boolean operation failed: {e}")
+
+            # Secondary method: Use trimesh boolean operations
             try:
                 result = self._trimesh_boolean_operation(mesh_a, mesh_b, operation_type)
                 if self._is_valid_mesh_result(result):
@@ -1374,6 +1514,42 @@ class CADAgent(BaseAgent):
             raise
         except Exception as e:
             raise BooleanOperationError(f"Unexpected error in boolean operation: {str(e)}")
+
+    def _open3d_boolean_operation(self, mesh_a: Any, mesh_b: Any, operation_type: str) -> Any:
+        """Perform boolean operation using Open3D for performance and robustness."""
+        if not OPEN3D_AVAILABLE:
+            raise BooleanOperationError("Open3D not available")
+        try:
+            a_o3d = self._to_open3d(mesh_a)
+            b_o3d = self._to_open3d(mesh_b)
+
+            if operation_type == 'union':
+                r_o3d = a_o3d.boolean_union(b_o3d)
+            elif operation_type == 'difference':
+                r_o3d = a_o3d.boolean_difference(b_o3d)
+            elif operation_type == 'intersection':
+                r_o3d = a_o3d.boolean_intersection(b_o3d)
+            else:
+                raise BooleanOperationError(f"Unsupported operation type: {operation_type}")
+
+            return self._from_open3d(r_o3d)
+        except Exception as e:
+            raise BooleanOperationError(f"Open3D boolean failed: {e}")
+
+    def _to_open3d(self, mesh: Any):
+        """Convert a trimesh-like mesh to Open3D TriangleMesh."""
+        if not hasattr(mesh, 'vertices') or not hasattr(mesh, 'faces'):
+            raise BooleanOperationError("Invalid mesh for Open3D conversion")
+        m = o3d.geometry.TriangleMesh()
+        m.vertices = o3d.utility.Vector3dVector(np.asarray(mesh.vertices, dtype=np.float64))
+        m.triangles = o3d.utility.Vector3iVector(np.asarray(mesh.faces, dtype=np.int32))
+        return m
+
+    def _from_open3d(self, mesh_o3d):
+        """Convert an Open3D TriangleMesh to trimesh.Trimesh."""
+        v = np.asarray(mesh_o3d.vertices)
+        f = np.asarray(mesh_o3d.triangles)
+        return trimesh.Trimesh(vertices=v, faces=f, process=False)
     
     def _trimesh_boolean_operation(self, mesh_a: Any, mesh_b: Any, operation_type: str) -> Any:
         """Perform boolean operation using trimesh."""
@@ -1471,8 +1647,7 @@ class CADAgent(BaseAgent):
                 raise BooleanOperationError(f"Unsupported numpy operation: {operation_type}")
             
             # Basic mesh validation and repair
-            if hasattr(result_mesh, 'remove_degenerate_faces'):
-                result_mesh.remove_degenerate_faces()
+            self._clean_trimesh(result_mesh)
             
             return result_mesh
             
@@ -1605,12 +1780,12 @@ class CADAgent(BaseAgent):
     def _has_degenerate_geometry(self, mesh: Any) -> bool:
         """Check for degenerate geometry that could cause boolean operation failures."""
         try:
-            # Check for duplicate vertices
-            if hasattr(mesh, 'remove_duplicate_faces'):
-                original_face_count = len(mesh.faces)
-                mesh.remove_duplicate_faces()
-                if len(mesh.faces) < original_face_count:
-                    return True
+            # Check for duplicate faces without mutating original mesh
+            if hasattr(mesh, 'unique_faces'):
+                unique_mask = mesh.unique_faces()
+                if unique_mask is not None and len(unique_mask) == len(mesh.faces):
+                    if int(np.sum(unique_mask)) < len(mesh.faces):
+                        return True
             
             # Check for zero-area faces
             if hasattr(mesh, 'area_faces'):
@@ -1636,24 +1811,16 @@ class CADAgent(BaseAgent):
             # Create a copy to avoid modifying original
             repaired_mesh = mesh.copy()
             
-            # Remove duplicate vertices and faces
-            if hasattr(repaired_mesh, 'remove_duplicate_faces'):
-                repaired_mesh.remove_duplicate_faces()
-            
-            if hasattr(repaired_mesh, 'remove_unreferenced_vertices'):
-                repaired_mesh.remove_unreferenced_vertices()
-            
+            # Initial cleanup
+            self._clean_trimesh(repaired_mesh)
+
             # Fill holes if possible
             if hasattr(repaired_mesh, 'fill_holes'):
                 repaired_mesh.fill_holes()
+                self._clean_trimesh(repaired_mesh)
             
-            # Fix normals
-            if hasattr(repaired_mesh, 'fix_normals'):
-                repaired_mesh.fix_normals()
-            
-            # Remove degenerate faces
-            if hasattr(repaired_mesh, 'remove_degenerate_faces'):
-                repaired_mesh.remove_degenerate_faces()
+            # Final cleanup without re-running normals twice
+            self._clean_trimesh(repaired_mesh)
             
             self.logger.debug("Mesh repair completed")
             return repaired_mesh
@@ -2023,24 +2190,17 @@ class CADAgent(BaseAgent):
             
             elif quality_level == "standard":
                 # Balanced optimization
-                if hasattr(optimized_mesh, 'remove_duplicate_faces'):
-                    optimized_mesh.remove_duplicate_faces()
-                    operations.append("Removed duplicate faces")
-                
-                if hasattr(optimized_mesh, 'remove_unreferenced_vertices'):
-                    optimized_mesh.remove_unreferenced_vertices()
-                    operations.append("Removed unreferenced vertices")
-            
+                self._clean_trimesh(optimized_mesh)
+                operations.append("Cleaned duplicate/degenerate faces")
+
             elif quality_level in ["high", "ultra"]:
                 # Minimal optimization, preserve quality
-                if hasattr(optimized_mesh, 'remove_duplicate_faces'):
-                    optimized_mesh.remove_duplicate_faces()
-                    operations.append("Removed duplicate faces only")
-            
+                self._clean_trimesh(optimized_mesh, fix_normals=False)
+                operations.append("Deduplicated faces (minimal)")
+
             # Common optimizations for all quality levels
-            if hasattr(optimized_mesh, 'fix_normals'):
-                optimized_mesh.fix_normals()
-                operations.append("Fixed normals")
+            self._clean_trimesh(optimized_mesh)
+            operations.append("Normalized mesh")
             
             # Get final stats
             vertices_after = len(optimized_mesh.vertices) if hasattr(optimized_mesh, 'vertices') else 0
@@ -2077,12 +2237,8 @@ class CADAgent(BaseAgent):
             # Try various manifold repair techniques
             if hasattr(manifold_mesh, 'fill_holes'):
                 manifold_mesh.fill_holes()
-            
-            if hasattr(manifold_mesh, 'remove_duplicate_faces'):
-                manifold_mesh.remove_duplicate_faces()
-            
-            if hasattr(manifold_mesh, 'remove_unreferenced_vertices'):
-                manifold_mesh.remove_unreferenced_vertices()
+
+            self._clean_trimesh(manifold_mesh)
             
             # Additional manifold repair if available
             if hasattr(manifold_mesh, 'process'):

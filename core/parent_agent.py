@@ -12,22 +12,42 @@ from datetime import datetime, timedelta
 from enum import Enum
 from typing import Dict, List, Optional, Set, Any, Callable, Awaitable, Union
 from contextlib import asynccontextmanager
+import re  # for file path extraction
 
-import sys
-import os
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
-from base_agent import BaseAgent
-from api_schemas import AgentStatus
-from api_schemas import TaskResult
-from message_queue import MessageQueue, Message, MessagePriority, MessageStatus, create_message_queue
-from exceptions import (
-    WorkflowError,
-    AgentCommunicationError,
-    AgentTimeoutError,
-    ValidationError
-)
-from logger import AgentLogger
+try:  # Prefer package-relative imports but fall back for legacy direct usage
+    from .base_agent import BaseAgent
+    from .api_schemas import AgentStatus, TaskResult
+    from .message_queue import MessageQueue, Message, MessagePriority, MessageStatus, create_message_queue
+    from .exceptions import (
+        WorkflowError,
+        AgentCommunicationError,
+        AgentTimeoutError,
+        ValidationError
+    )
+    from .logger import AgentLogger
+except ImportError:  # pragma: no cover - legacy fallback for direct module execution
+    try:
+        from core.base_agent import BaseAgent  # type: ignore
+        from core.api_schemas import AgentStatus, TaskResult  # type: ignore
+        from core.message_queue import MessageQueue, Message, MessagePriority, MessageStatus, create_message_queue  # type: ignore
+        from core.exceptions import (  # type: ignore
+            WorkflowError,
+            AgentCommunicationError,
+            AgentTimeoutError,
+            ValidationError
+        )
+        from core.logger import AgentLogger  # type: ignore
+    except ImportError:
+        from base_agent import BaseAgent  # type: ignore
+        from api_schemas import AgentStatus, TaskResult  # type: ignore
+        from message_queue import MessageQueue, Message, MessagePriority, MessageStatus, create_message_queue  # type: ignore
+        from exceptions import (  # type: ignore
+            WorkflowError,
+            AgentCommunicationError,
+            AgentTimeoutError,
+            ValidationError
+        )
+        from logger import AgentLogger  # type: ignore
 
 
 class WorkflowState(Enum):
@@ -86,7 +106,11 @@ class WorkflowStep:
     @property
     def can_retry(self) -> bool:
         """Check if step can be retried."""
-        return self.retry_count < self.max_retries and self.is_failed
+        if self.retry_count >= self.max_retries:
+            return False
+        if self.status == WorkflowStepStatus.COMPLETED:
+            return False
+        return True
 
 
 @dataclass
@@ -183,6 +207,9 @@ class ParentAgent(BaseAgent):
         # Agent registry for communication
         self.registered_agents: Set[str] = set()
         self.agent_responses: Dict[str, Dict[str, Any]] = {}
+        
+        # Agent status tracking
+        self.status = AgentStatus.IDLE
         
         # Task execution state
         self._shutdown = False
@@ -429,12 +456,31 @@ class ParentAgent(BaseAgent):
             step.input_data = {"user_request": workflow.user_request}
         elif step.agent_type == "cad_agent":
             workflow.state = WorkflowState.CAD_PHASE
-            # Get research results from previous step
+            # Build CAD task data based on research output
+            import re
             research_step = workflow.get_step(f"{workflow.workflow_id}_research")
-            step.input_data = {
-                "requirements": research_step.output_data if research_step else {},
-                "user_request": workflow.user_request
-            }
+            research_data = research_step.output_data if research_step else {}
+            user_req = workflow.user_request
+            # Detect image-to-3D request
+            image_match = re.search(r"(\S+\.(?:png|jpg|jpeg|gif))", user_req)
+            if image_match:
+                step.input_data = {
+                    'task_id': step.step_id,
+                    'operation': 'create_from_image',
+                    'image_path': image_match.group(1),
+                    'height_scale': research_data.get('height_scale', 5.0),
+                    'base_thickness': research_data.get('base_thickness', 2.0)
+                }
+            else:
+                # Fallback to primitive creation
+                spec = research_data.get('design_specification', {})
+                geometry = spec.get('object_specifications', {}).get('geometry', {})
+                step.input_data = {
+                    'task_id': step.step_id,
+                    'operation': 'create_primitive',
+                    'specifications': {'geometry': geometry},
+                    'requirements': {'format_preference': research_data.get('format_preference', 'stl')}
+                }
         elif step.agent_type == "slicer_agent":
             workflow.state = WorkflowState.SLICING_PHASE
             # Get CAD results from previous step
@@ -839,33 +885,52 @@ class ParentAgent(BaseAgent):
         """Execute the CAD generation phase of the workflow."""
         try:
             self.logger.info("Starting CAD workflow phase")
-            
+
             if progress_callback:
                 await progress_callback({
                     "percentage": 10,
                     "current_step": "Processing design specification",
                     "message": "Starting 3D model generation"
                 })
-            
-            # Get research output - handle TaskResult object
+
+            # Get research output and extract user_request
             if hasattr(input_data, 'data'):
-                # input_data is a TaskResult object
                 research_output = input_data.data
-                workflow_id = 'unknown'
-                user_request = ""
-                metadata = {}
-            elif isinstance(input_data, dict):
-                research_output = input_data.get("research_output", input_data)
-                workflow_id = input_data.get('workflow_id', 'unknown')
-                user_request = input_data.get("user_request", "")
-                metadata = input_data.get("metadata", {})
+                user_request = research_output.get('user_request', '')
+                metadata = research_output.get('metadata', {})
+                workflow_id = research_output.get('workflow_id', 'unknown')
             else:
-                # Fallback
-                research_output = {}
-                workflow_id = 'unknown'
-                user_request = str(input_data)
-                metadata = {}
-                
+                research_output = input_data
+                user_request = research_output.get('user_request', '') if isinstance(research_output, dict) else str(research_output)
+                metadata = research_output.get('metadata', {}) if isinstance(research_output, dict) else {}
+                workflow_id = research_output.get('workflow_id', 'unknown') if isinstance(research_output, dict) else 'unknown'
+
+            # Early image-to-3D conversion handling
+            import re
+            image_match = re.search(r"(\S+\.(?:png|jpg|jpeg|gif))", user_request)
+            if image_match:
+                image_path = image_match.group(1)
+                cad_input_data = {
+                    'operation': 'create_from_image',
+                    'image_path': image_path,
+                    'height_scale': metadata.get('height_scale', 5.0),
+                    'base_thickness': metadata.get('base_thickness', 2.0)
+                }
+                cad_result = await self._cad_agent.execute_task(cad_input_data)
+                if not cad_result.success:
+                    raise WorkflowError(f"CAD phase failed: {cad_result.error_message}")
+                stl_file = cad_result.data.get('model_file') or cad_result.data.get('stl_file')
+                return TaskResult(
+                    success=True,
+                    data={
+                        'stl_file': stl_file,
+                        'cad_output': cad_result.data,
+                        'workflow_id': workflow_id,
+                        'metadata': metadata
+                    }
+                )
+
+            # Get CAD specifications from research output
             design_spec = research_output.get("design_specification", {})
             
             # Extract and format specifications for CAD agent
@@ -913,32 +978,48 @@ class ParentAgent(BaseAgent):
                 }
             }
             
-            # Execute CAD agent
-            cad_result = await self._cad_agent.execute_task({
-                "task_id": f"cad_{workflow_id}",
-                "operation": "create_primitive",
-                "specifications": cad_specifications,
-                "requirements": {"user_request": user_request},
-                "format_preference": "stl",
-                "quality_level": "standard",
-                "metadata": metadata
-            })
-            
+            # Determine CAD task data
+            import re
+            image_match = re.search(r"(\S+\.(?:png|jpg|jpeg|gif))", user_request or "")
+            if image_match:
+                cad_input_data = {
+                    'operation': 'create_from_image',
+                    'image_path': image_match.group(1),
+                    'height_scale': metadata.get('height_scale', 5.0),
+                    'base_thickness': metadata.get('base_thickness', 2.0)
+                }
+            else:
+                cad_input_data = {
+                    'operation': 'create_primitive',
+                    'specifications': cad_specifications,
+                    'requirements': {'format_preference': metadata.get('format_preference', 'stl')}
+                }
+
+            # Execute CAD agent task
+            cad_result = await self._cad_agent.execute_task(cad_input_data)
             if progress_callback:
                 await progress_callback({
-                    "percentage": 90,
-                    "current_step": "3D model generated",
-                    "message": "3D model generation completed"
+                    'percentage': 90,
+                    'current_step': '3D model generated',
+                    'message': '3D model generation completed'
                 })
-            
+
+            # Process CAD result
+            if not cad_result.success:
+                raise WorkflowError(f"CAD phase failed: {cad_result.error_message}")
+
+            # Prepare output for slicing
+            # Extract stl_file from result
+            stl_file = cad_result.data.get('model_file') or cad_result.data.get('stl_file')
+
             return TaskResult(
-                success=cad_result.success,
+                success=True,
                 data={
-                    "stl_file": cad_result.data.get("model_file_path"),
-                    "model_info": cad_result.data,
-                    "design_specification": cad_specifications
-                },
-                error_message=cad_result.error_message
+                    'stl_file': stl_file,
+                    'cad_output': cad_result.data,
+                    'workflow_id': workflow_id,
+                    'metadata': metadata
+                }
             )
             
         except Exception as e:
@@ -1112,7 +1193,7 @@ class ParentAgent(BaseAgent):
                     "print_result": print_result.data if hasattr(print_result, 'data') else print_result,
                     "gcode_file": gcode_file
                 },
-                error_message=print_result.error_message if hasattr(print_result, 'error_message') else print_result.get("error_message")
+                error_message=(print_result.error_message if hasattr(print_result, 'error_message') else None)
             )
             
         except Exception as e:

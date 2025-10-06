@@ -11,7 +11,7 @@ from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field, ConfigDict, field_validator
+from pydantic import BaseModel, Field, ConfigDict, field_validator, AliasChoices
 from pydantic.types import PositiveInt, PositiveFloat
 
 
@@ -118,11 +118,18 @@ class TaskResult(BaseSchema):
     error_message: Optional[str] = None
     execution_time: Optional[float] = None
     metadata: Dict[str, Any] = Field(default_factory=dict)
-    
-    @property
-    def task_id(self) -> Optional[str]:
-        """Get task_id from metadata for backward compatibility."""
-        return self.metadata.get('task_id')
+    task_id: Optional[str] = None
+
+    def model_post_init(self, __context: Any) -> None:
+        """Ensure task_id is mirrored into metadata for legacy consumers."""
+        if self.task_id and 'task_id' not in self.metadata:
+            self.metadata['task_id'] = self.task_id
+
+    def __getitem__(self, item: str) -> Any:
+        """Provide dict-style access for legacy callers and tests."""
+        if hasattr(self, item):
+            return getattr(self, item)
+        raise KeyError(item)
 
 
 class AgentInfo(BaseSchema):
@@ -137,9 +144,12 @@ class AgentInfo(BaseSchema):
 
 class Message(BaseSchema, TimestampMixin):
     """Inter-agent communication message."""
-    message_id: str = Field(default_factory=lambda: str(uuid4()))
-    sender_id: str
-    recipient_id: str
+    message_id: str = Field(
+        default_factory=lambda: str(uuid4()),
+        validation_alias=AliasChoices("message_id", "id")
+    )
+    sender_id: str = Field(validation_alias=AliasChoices("sender_id", "sender"))
+    recipient_id: str = Field(validation_alias=AliasChoices("recipient_id", "receiver"))
     message_type: str
     priority: MessagePriority = MessagePriority.NORMAL
     status: MessageStatus = MessageStatus.PENDING
@@ -147,6 +157,16 @@ class Message(BaseSchema, TimestampMixin):
     expires_at: Optional[datetime] = None
     retry_count: int = 0
     max_retries: int = 3
+
+    @property
+    def sender(self) -> str:
+        """Backward-compatible sender accessor."""
+        return self.sender_id
+
+    @property
+    def receiver(self) -> str:
+        """Backward-compatible receiver accessor."""
+        return self.recipient_id
 
 
 class WorkflowStep(BaseSchema, TimestampMixin):

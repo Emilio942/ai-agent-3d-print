@@ -7,6 +7,7 @@ import serial
 import time
 import sys
 import os
+import pytest
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from multi_printer_support import PrinterType, PrinterBrand
@@ -74,6 +75,7 @@ def sync_detect_printer(port: str, timeout: float = 3.0):
     
     return None
 
+@pytest.mark.asyncio
 async def test_sync_detection():
     """Test the synchronous detection."""
     print("🚀 Synchronous Printer Detection Test")

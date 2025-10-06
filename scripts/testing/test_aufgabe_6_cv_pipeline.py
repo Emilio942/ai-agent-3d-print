@@ -21,8 +21,12 @@ import cv2
 import numpy as np
 from pathlib import Path
 
-# Add path to import our modules
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Add repository root to import project modules (agents, core, api, ...)
+# __file__ = <repo>/scripts/testing/test_aufgabe_6_cv_pipeline.py
+# parents: [0]=file, [1]=testing, [2]=scripts, [3]=<repo root>
+repo_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if repo_root not in sys.path:
+    sys.path.insert(0, repo_root)
 
 from agents.image_processing_agent import ImageProcessingAgent
 
