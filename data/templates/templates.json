@@ -1,6 +1,6 @@
 [
   {
-    "id": "896af403-ce52-40a2-b646-b8f187d4b95e",
+    "id": "2f19fcad-ecaf-4d1c-aef6-4a1b27a5e007",
     "name": "Simple Gear",
     "description": "A basic gear template",
     "category": "mechanical",
@@ -13,8 +13,8 @@
       "mechanical"
     ],
     "author": "AI Agent System",
-    "created_at": "2025-10-05T12:27:00.568198",
-    "updated_at": "2025-10-05T12:27:00.568200",
+    "created_at": "2025-10-23T18:09:41.330947",
+    "updated_at": "2025-10-23T18:09:41.330949",
     "usage_count": 11,
     "rating": 4.5,
     "rating_count": 0,

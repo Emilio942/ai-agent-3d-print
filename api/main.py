@@ -129,6 +129,14 @@ except ImportError as e:
     SLICER_ROUTES_AVAILABLE = False
     logger.warning(f"Slicer routes not available: {e}")
 
+# Optional: preview routes
+try:
+    from api.preview_routes import router as preview_router
+    PREVIEW_ROUTES_AVAILABLE = True
+except ImportError as e:
+    PREVIEW_ROUTES_AVAILABLE = False
+    logger.warning(f"Preview routes not available: {e}")
+
 # Application state
 app_state = {
     "parent_agent": None,
@@ -288,6 +296,10 @@ if 'CAT_ROUTES_AVAILABLE' in globals() and CAT_ROUTES_AVAILABLE:
 if 'SLICER_ROUTES_AVAILABLE' in globals() and SLICER_ROUTES_AVAILABLE:
     app.include_router(slicer_router)
     logger.info("Slicer routes registered")
+
+if 'PREVIEW_ROUTES_AVAILABLE' in globals() and PREVIEW_ROUTES_AVAILABLE:
+    app.include_router(preview_router)
+    logger.info("Preview routes registered")
 
 # =============================================================================
 # EXCEPTION HANDLERS
