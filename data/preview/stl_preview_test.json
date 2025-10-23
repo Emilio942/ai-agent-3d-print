@@ -1,0 +1,111 @@
+{
+  "geometry": {
+    "vertices": [
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0
+    ],
+    "normals": [
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      1.0
+    ],
+    "faces": [
+      0,
+      1,
+      2
+    ],
+    "bounds": {
+      "x": [
+        0.0,
+        1.0
+      ],
+      "y": [
+        0.0,
+        1.0
+      ],
+      "z": [
+        0.0,
+        0.0
+      ]
+    },
+    "center": [
+      0.5,
+      0.5,
+      0.0
+    ]
+  },
+  "camera": {
+    "position": [
+      2.5,
+      2.5,
+      2.0
+    ],
+    "target": [
+      0.5,
+      0.5,
+      0.0
+    ],
+    "fov": 45,
+    "near": 0.1,
+    "far": 20.0
+  },
+  "viewer_settings": {
+    "background_color": "#f0f0f0",
+    "grid_enabled": true,
+    "grid_size": 10,
+    "show_axes": true,
+    "camera_position": [
+      50,
+      50,
+      50
+    ],
+    "camera_target": [
+      0,
+      0,
+      0
+    ],
+    "lighting_intensity": 1.0,
+    "show_build_volume": true,
+    "build_volume_size": [
+      200,
+      200,
+      200
+    ]
+  },
+  "statistics": {
+    "triangle_count": 1,
+    "vertex_count": 3,
+    "bounds": {
+      "x": [
+        0.0,
+        1.0
+      ],
+      "y": [
+        0.0,
+        1.0
+      ],
+      "z": [
+        0.0,
+        0.0
+      ]
+    }
+  },
+  "file_info": {
+    "filename": "test.stl",
+    "file_size": 140,
+    "modification_time": 1761242560.5604684
+  }
+}
