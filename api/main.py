@@ -22,20 +22,17 @@ Required endpoints:
 
 import asyncio
 import json
-import logging
 import time
 import traceback
-import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Any
+from typing import Dict, List, Optional, Any
 from uuid import uuid4
 
 import uvicorn
 from fastapi import (
-    BackgroundTasks, Depends, FastAPI, HTTPException, Query, WebSocket,
-    WebSocketDisconnect, status, File, UploadFile, Form
+    BackgroundTasks, Depends, FastAPI, HTTPException, Query, status, File, UploadFile, Form
 )
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, HTMLResponse, RedirectResponse, Response
@@ -56,7 +53,6 @@ from core.exceptions import (
 )
 from config.settings import load_config
 from core.health_monitor import health_monitor, setup_default_monitoring
-from agents.image_processing_agent import ImageProcessingAgent
 
 # Import printer discovery (optional)
 try:
@@ -77,9 +73,7 @@ except ImportError:
 
 # Import API schemas
 from core.api_schemas import (
-    CreateWorkflowRequest, WorkflowResponse, WorkflowStatusResponse,
-    SystemHealthResponse, ErrorResponse, ProgressUpdate, StatusUpdate,
-    Workflow, WorkflowState, WorkflowStep, WorkflowStepStatus, TaskResult, AgentType
+    Workflow, WorkflowState, WorkflowStepStatus
 )
 
 # =============================================================================
@@ -171,8 +165,7 @@ async def lifespan(app: FastAPI):
         
         # Initialize health monitoring
         logger.info("Setting up health monitoring...")
-        # Temporarily disabled due to timeout issues
-        # await setup_default_monitoring()
+        await setup_default_monitoring()
         
         app_state["system_health"]["status"] = "healthy"
         
@@ -239,8 +232,7 @@ try:
     )
     
     # Security middleware (should be first for security checks)
-    # Temporarily disabled for mass testing
-    # app.add_middleware(SecurityMiddleware)
+    app.add_middleware(SecurityMiddleware)
     
     # Performance middleware
     app.add_middleware(PerformanceMiddleware)

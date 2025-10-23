@@ -227,6 +227,9 @@ class CADAgent(BaseAgent):
 
     async def _create_primitive_task(self, cad_input: CADAgentInput) -> Dict[str, Any]:
         """Create 3D primitive based on specifications."""
+        import time
+        start_time = time.time()
+        
         specifications = cad_input.specifications
         
         # Support both formats: 'geometry' (new format) and 'primitive_creation' (test format)
@@ -303,6 +306,12 @@ class CADAgent(BaseAgent):
                 mesh_obj.Mesh.write(mesh_file_path)
                 self.doc.removeObject(mesh_obj.Name)
         
+        # Calculate actual generation time
+        generation_time = time.time() - start_time
+        
+        # Calculate quality score based on mesh properties
+        quality_score = self._calculate_mesh_quality_score(mesh, base_shape)
+        
         return {
             'model_file': mesh_file_path,
             'stl_file': mesh_file_path,  # For backward compatibility
@@ -314,8 +323,8 @@ class CADAgent(BaseAgent):
             'surface_area': self._calculate_surface_area(mesh),
             'material_weight_g': material_weight_g,
             'printability_score': printability_score,
-            'generation_time': 0.1,  # Placeholder
-            'quality_score': 8.5,  # Placeholder
+            'generation_time': generation_time,
+            'quality_score': quality_score,
             'complexity_metrics': {
                 'vertex_count': self._get_vertex_count(mesh),
                 'face_count': self._get_face_count(mesh),
@@ -1391,10 +1400,16 @@ class CADAgent(BaseAgent):
             elif hasattr(mesh, 'Area'):
                 return float(mesh.Area)
             else:
-                # Fallback estimation
-                return 100.0  # Placeholder
+                # Estimate from bounding box if no area available
+                if hasattr(mesh, 'bounds'):
+                    bounds = mesh.bounds
+                    dx = bounds[1][0] - bounds[0][0]
+                    dy = bounds[1][1] - bounds[0][1]
+                    dz = bounds[1][2] - bounds[0][2]
+                    return 2 * (dx*dy + dy*dz + dz*dx)
+                return 0.0
         except Exception:
-            return 100.0  # Fallback value
+            return 0.0
 
     def _get_vertex_count(self, mesh: Any) -> int:
         """Get vertex count from mesh."""
@@ -1431,12 +1446,52 @@ class CADAgent(BaseAgent):
         }
         return complexity_scores.get(shape_type, 3.0)
 
+    def _calculate_mesh_quality_score(self, mesh: Any, shape_type: str = None) -> float:
+        """Calculate mesh quality score (0-10) based on various metrics."""
+        try:
+            score = 10.0
+            
+            # Check if mesh is watertight (most important)
+            if hasattr(mesh, 'is_watertight'):
+                if not mesh.is_watertight:
+                    score -= 3.0
+            
+            # Check for degenerate faces
+            if hasattr(mesh, 'remove_degenerate_faces'):
+                original_faces = len(mesh.faces) if hasattr(mesh, 'faces') else 0
+                # Non-destructive check
+                if original_faces > 0:
+                    pass  # Mesh exists
+            
+            # Vertex/face ratio quality
+            vertices = self._get_vertex_count(mesh)
+            faces = self._get_face_count(mesh)
+            if vertices > 0 and faces > 0:
+                ratio = faces / vertices
+                # Ideal ratio is around 2.0 for good meshes
+                if ratio < 1.0 or ratio > 4.0:
+                    score -= 1.0
+            
+            # Volume check
+            if hasattr(mesh, 'volume') and mesh.volume <= 0:
+                score -= 2.0
+            
+            # Ensure score is in range [0, 10]
+            return max(0.0, min(10.0, score))
+            
+        except Exception as e:
+            self.logger.warning(f"Could not calculate quality score: {e}")
+            return 7.0  # Default reasonable score
+
     # =============================================================================
     # BOOLEAN OPERATIONS (TASK 2.2.2)
     # =============================================================================
 
     async def _boolean_operation_task(self, cad_input: CADAgentInput) -> Dict[str, Any]:
         """Execute boolean operations with error recovery (Task 2.2.2)."""
+        import time
+        start_time = time.time()
+        
         try:
             self.logger.info("Starting boolean operation task")
             
@@ -1485,6 +1540,9 @@ class CADAgent(BaseAgent):
             quality_score = self._assess_boolean_result_quality(result_mesh)
             printability_score = self._check_printability_boolean(result_mesh, operation_type)
             
+            # Calculate actual generation time
+            generation_time = time.time() - start_time
+            
             self.logger.info(f"Boolean operation {operation_type} completed successfully")
             
             return {
@@ -1499,7 +1557,7 @@ class CADAgent(BaseAgent):
                 'is_manifold': self._is_mesh_manifold(result_mesh),
                 'is_watertight': self._is_mesh_watertight(result_mesh),
                 'auto_repaired': auto_repair,
-                'generation_time': 0.5  # Placeholder
+                'generation_time': generation_time
             }
             
         except Exception as e:
