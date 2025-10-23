@@ -162,6 +162,125 @@ def retry_with_backoff(
     return decorator
 
 
+def retry_with_fallback(
+    max_retries: int = 3,
+    base_delay: float = 1.0,
+    fallback_func: Optional[Callable] = None,
+    fallback_on_exceptions: Optional[Tuple[Type[Exception], ...]] = None
+):
+    """
+    Decorator with retry logic AND fallback to alternative method.
+    
+    This is perfect for situations like:
+    - Primary: PrusaSlicer → Fallback: Cura
+    - Primary: FreeCAD → Fallback: Trimesh
+    - Primary: Real Printer → Fallback: Mock Printer
+    
+    Args:
+        max_retries: Maximum retry attempts for primary function
+        base_delay: Initial delay between retries
+        fallback_func: Alternative function to try if all retries fail
+        fallback_on_exceptions: Only use fallback for these exceptions
+        
+    Example:
+        def fallback_slicer(stl_file, settings):
+            return mock_slice(stl_file, settings)
+        
+        @retry_with_fallback(max_retries=2, fallback_func=fallback_slicer)
+        async def slice_with_prusaslicer(stl_file, settings):
+            return await run_prusaslicer(stl_file, settings)
+            
+        # If PrusaSlicer fails 2 times → automatically uses mock_slice()
+    """
+    
+    def decorator(func: Callable) -> Callable:
+        is_async = asyncio.iscoroutinefunction(func)
+        
+        if is_async:
+            @wraps(func)
+            async def async_wrapper(*args, **kwargs) -> Any:
+                last_exception = None
+                
+                # Try primary function with retries
+                for attempt in range(max_retries):
+                    try:
+                        return await func(*args, **kwargs)
+                    except Exception as e:
+                        last_exception = e
+                        
+                        # Check if we should use fallback for this exception
+                        if fallback_on_exceptions and not isinstance(e, fallback_on_exceptions):
+                            raise
+                        
+                        if attempt < max_retries - 1:
+                            delay = min(base_delay * (2 ** attempt), 60.0)
+                            logger.warning(
+                                f"⚠️ {func.__name__} attempt {attempt + 1}/{max_retries} failed: "
+                                f"{type(e).__name__} - Retrying in {delay:.1f}s..."
+                            )
+                            await asyncio.sleep(delay)
+                
+                # All retries failed - try fallback if available
+                if fallback_func:
+                    logger.warning(
+                        f"🔄 All retries failed for {func.__name__}, "
+                        f"trying fallback: {fallback_func.__name__}"
+                    )
+                    try:
+                        if asyncio.iscoroutinefunction(fallback_func):
+                            return await fallback_func(*args, **kwargs)
+                        else:
+                            return fallback_func(*args, **kwargs)
+                    except Exception as fallback_error:
+                        logger.error(f"❌ Fallback also failed: {fallback_error}")
+                        raise
+                
+                # No fallback available - raise original exception
+                if last_exception:
+                    raise last_exception
+                    
+            return async_wrapper
+        else:
+            @wraps(func)
+            def sync_wrapper(*args, **kwargs) -> Any:
+                last_exception = None
+                
+                for attempt in range(max_retries):
+                    try:
+                        return func(*args, **kwargs)
+                    except Exception as e:
+                        last_exception = e
+                        
+                        if fallback_on_exceptions and not isinstance(e, fallback_on_exceptions):
+                            raise
+                        
+                        if attempt < max_retries - 1:
+                            delay = min(base_delay * (2 ** attempt), 60.0)
+                            logger.warning(
+                                f"⚠️ {func.__name__} attempt {attempt + 1}/{max_retries} failed: "
+                                f"{type(e).__name__} - Retrying in {delay:.1f}s..."
+                            )
+                            time.sleep(delay)
+                
+                if fallback_func:
+                    logger.warning(
+                        f"🔄 All retries failed for {func.__name__}, "
+                        f"trying fallback: {fallback_func.__name__}"
+                    )
+                    try:
+                        return fallback_func(*args, **kwargs)
+                    except Exception as fallback_error:
+                        logger.error(f"❌ Fallback also failed: {fallback_error}")
+                        raise
+                
+                if last_exception:
+                    raise last_exception
+                    
+            return sync_wrapper
+            
+    return decorator
+
+
 class CircuitBreaker:
     """
     Circuit Breaker pattern for preventing cascading failures.

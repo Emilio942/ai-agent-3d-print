@@ -17,12 +17,10 @@ import asyncio
 import threading
 import time
 import re
-import json
-import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union, Callable
-from datetime import datetime, timedelta
-from queue import Queue, Empty
+from datetime import datetime
+from queue import Queue
 from dataclasses import dataclass
 from enum import Enum
 
@@ -56,9 +54,10 @@ from core.base_agent import BaseAgent
 from core.logger import get_logger
 from core.exceptions import (
     PrinterAgentError, PrinterConnectionError, PrinterNotConnectedError, SerialCommunicationError,
-    GCodeStreamingError, PrinterTimeoutError, ValidationError, ConfigurationError
+    GCodeStreamingError, PrinterTimeoutError, ValidationError
 )
-from core.api_schemas import PrinterAgentInput, PrinterAgentOutput, TaskResult
+from core.api_schemas import TaskResult
+from core.retry_utils import retry_with_backoff
 
 
 class PrinterStatus(Enum):
@@ -1000,8 +999,26 @@ class PrinterAgent(BaseAgent):
             self.printer_status = PrinterStatus.ERROR
             return False
             
+    @retry_with_backoff(
+        max_retries=3,
+        base_delay=2.0,
+        exceptions=(PrinterConnectionError, SerialCommunicationError, TimeoutError)
+    )
     async def _connect_real_printer(self, port: Optional[str], baudrate: int) -> bool:
-        """Connect to real printer via serial port."""
+        """
+        Connect to real printer via serial port with retry logic.
+        
+        Retry Strategy:
+        - Attempt 1: Try connection
+        - Attempt 2: Wait 2s, try again (printer might be initializing)
+        - Attempt 3: Wait 4s, final try (USB reconnection)
+        
+        Common failures this handles:
+        - USB cable loose connection
+        - Printer booting up
+        - Serial port busy
+        - Temporary communication errors
+        """
         if not SERIAL_AVAILABLE:
             raise PrinterConnectionError("pyserial not available for real printer connection")
             

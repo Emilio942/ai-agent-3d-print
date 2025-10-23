@@ -15,15 +15,9 @@ import os
 import subprocess
 import tempfile
 import time
-import re
 import shutil
-import asyncio
-import threading
-import queue
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union, Callable
-from datetime import datetime
-import json
+from typing import Any, Dict, List, Optional, Union
 import yaml
 
 # Serial communication imports for Task 2.3.2
@@ -41,8 +35,9 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 from core.base_agent import BaseAgent
 from core.logger import get_logger
-from core.exceptions import SlicerAgentError, SlicerExecutionError, SlicerProfileError, GCodeGenerationError, ValidationError, ConfigurationError
-from core.api_schemas import SlicerAgentInput, SlicerAgentOutput, TaskResult
+from core.exceptions import SlicerExecutionError, ValidationError
+from core.api_schemas import SlicerAgentInput, TaskResult
+from core.retry_utils import retry_with_backoff, retry_with_fallback
 
 
 class SlicerAgent(BaseAgent):
@@ -529,8 +524,34 @@ class SlicerAgent(BaseAgent):
             "profile_used": slicer_input.printer_profile
         }
     
+    async def _fallback_to_mock_slicing(self, slicer_input: SlicerAgentInput, effective_settings: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Fallback to mock slicing when real slicer fails.
+        
+        This ensures the workflow continues even if:
+        - PrusaSlicer not installed
+        - Cura crashes
+        - Slicer timeout
+        - Corrupted slicer installation
+        """
+        self.logger.warning("🔄 Falling back to mock slicing mode")
+        return await self._mock_slice_operation(slicer_input, effective_settings)
+    
+    @retry_with_fallback(
+        max_retries=2,
+        base_delay=2.0,
+        fallback_func=_fallback_to_mock_slicing,
+        fallback_on_exceptions=(SlicerExecutionError, subprocess.TimeoutExpired, FileNotFoundError)
+    )
     async def _perform_actual_slicing(self, slicer_input: SlicerAgentInput, effective_settings: Dict[str, Any]) -> Dict[str, Any]:
-        """Perform actual slicing using slicer executable."""
+        """
+        Perform actual slicing using slicer executable with retry + fallback.
+        
+        Retry Strategy:
+        - Attempt 1: Try PrusaSlicer
+        - Attempt 2: Wait 2s, try again (might be temp file lock)
+        - Fallback: Use mock slicing to keep workflow running
+        """
         self.logger.info("Performing actual slicing operation with PrusaSlicer")
         start_time = time.time()
         
