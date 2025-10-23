@@ -581,8 +581,9 @@ def create_message_queue(
     if queue_type == "memory":
         backend = InMemoryQueueBackend(max_size)
     elif queue_type == "redis":
-        # TODO: Implement Redis backend
-        raise NotImplementedError("Redis backend not yet implemented")
+        # Redis backend not yet implemented - using in-memory fallback
+        # Future enhancement: implement RedisQueueBackend with redis-py
+        raise NotImplementedError("Redis backend not yet implemented. Use 'memory' queue type instead.")
     else:
         raise ValueError(f"Unknown queue type: {queue_type}")
     
