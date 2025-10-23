@@ -40,7 +40,8 @@ class AI3DBackendManager:
         
         # Load configuration
         if config_path is None:
-            config_path = Path(__file__).parent.parent / "config" / "ai_backends.yaml"
+            # core/ai_backends/ -> root/config/
+            config_path = Path(__file__).parent.parent.parent / "config" / "ai_backends.yaml"
         
         self.config = self._load_config(config_path)
         self.registry = AI3DBackendRegistry()
