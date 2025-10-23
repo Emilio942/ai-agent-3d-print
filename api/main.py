@@ -242,7 +242,7 @@ try:
     # Security headers (should be last to ensure headers are set)
     app.add_middleware(SecurityHeadersMiddleware)
     
-    logger.info("Security and performance middleware loaded successfully (SecurityMiddleware disabled for testing)")
+    logger.info("Security and performance middleware loaded successfully")
     
 except ImportError as e:
     logger.warning(f"Middleware import failed: {e}. Running without enhanced security/performance features.")
