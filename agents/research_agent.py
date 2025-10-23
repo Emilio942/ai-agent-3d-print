@@ -10,20 +10,15 @@ spaCy+transformers pipeline with automatic fallback.
 import asyncio
 import threading
 import re
-import json
 import spacy
 import time
 import hashlib
-import yaml
-from typing import Dict, List, Any, Optional, Tuple, Awaitable, Union
+from typing import Dict, List, Any, Optional, Awaitable, Union
 from dataclasses import dataclass, field
 from enum import Enum
-import logging
-from datetime import datetime, timedelta
-from pathlib import Path
+from datetime import datetime
 
 # Web research dependencies
-import requests
 from duckduckgo_search import DDGS
 import diskcache as dc
 
@@ -34,8 +29,9 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core.base_agent import BaseAgent
 from core.api_schemas import TaskResult, ResearchAgentInput, ResearchAgentOutput
 from core.logger import AgentLogger
-from core.exceptions import ValidationError, SystemResourceError
-from core.ai_models import AIModelManager, AIModelConfig, AIModelType
+from core.exceptions import ValidationError
+from core.ai_models import AIModelManager
+from core.retry_utils import retry_with_backoff
 
 
 def create_test_intent_request(
@@ -492,7 +488,7 @@ class ResearchAgent(BaseAgent):
 
         return normalized
     
-    def research(self, keywords: List[str]) -> str:
+    async def research(self, keywords: List[str]) -> str:
         """
         Perform web research with rate limiting and caching.
         
@@ -524,8 +520,8 @@ class ResearchAgent(BaseAgent):
             # Record the request
             self.rate_limiter.record_request()
             
-            # Perform search
-            search_results = self._perform_web_search(query)
+            # Perform search with retry logic
+            search_results = await self._perform_web_search_with_retry(query)
             
             # Summarize results
             if search_results and self.summarizer:
@@ -553,6 +549,28 @@ class ResearchAgent(BaseAgent):
         except Exception as e:
             self.logger.error(f"Web research failed: {str(e)}")
             return f"Web research failed: {str(e)}"
+    
+    @retry_with_backoff(max_retries=3, base_delay=1.0, exceptions=(ConnectionError, TimeoutError, Exception))
+    async def _perform_web_search_with_retry(self, query: str, max_results: int = 5) -> List[Dict[str, str]]:
+        """
+        Perform web search with automatic retry on failures.
+        
+        This wraps _perform_web_search with retry logic to handle:
+        - Network timeouts
+        - Connection errors
+        - Rate limiting (429 errors)
+        - Temporary API outages
+        
+        Args:
+            query: Search query
+            max_results: Maximum number of results to return
+            
+        Returns:
+            List of search results
+        """
+        # Run sync function in executor to make it awaitable
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(None, self._perform_web_search, query, max_results)
     
     def _perform_web_search(self, query: str, max_results: int = 5) -> List[Dict[str, str]]:
         """

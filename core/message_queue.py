@@ -17,7 +17,6 @@ Key Components:
 """
 
 import asyncio
-import json
 import time
 import uuid
 from abc import ABC, abstractmethod
@@ -25,9 +24,8 @@ from dataclasses import dataclass, asdict, field
 from datetime import datetime, timedelta
 from enum import Enum, IntEnum
 from heapq import heappush, heappop
-from typing import Dict, List, Optional, Any, Callable, Union
+from typing import Dict, List, Optional, Any, Callable
 from threading import Lock, Event
-import logging
 
 try:
     from .exceptions import (

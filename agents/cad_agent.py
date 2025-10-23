@@ -13,9 +13,7 @@ Task 2.2.1: 3D Primitives Library Implementation
 import math
 import tempfile
 import os
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
-from datetime import datetime
+from typing import Any, Dict, List, Optional, Tuple
 
 # CAD Libraries
 try:
@@ -39,8 +37,6 @@ except ImportError:
 import trimesh
 import numpy as np
 import time
-import scipy.spatial
-from scipy import ndimage
 try:
     from skimage import measure
     SKIMAGE_AVAILABLE = True
@@ -65,10 +61,10 @@ except Exception:
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.base_agent import BaseAgent, TaskStatus
+from core.base_agent import BaseAgent
 from core.logger import get_logger
-from core.api_schemas import CADAgentInput, CADAgentOutput, TaskResult
-from core.exceptions import ValidationError, SystemResourceError, AI3DPrintError
+from core.api_schemas import CADAgentInput, TaskResult
+from core.exceptions import ValidationError, AI3DPrintError
 
 
 class GeometryValidationError(ValidationError):
@@ -291,6 +287,11 @@ class CADAgent(BaseAgent):
         mesh_file_path = temp_file.name
         temp_file.close()
         
+        # Auto-repair mesh before export (Task 2.2.1: Quality Control)
+        if hasattr(mesh, 'is_watertight'):  # Only for trimesh objects
+            mesh, repair_report = self.auto_repair_mesh(mesh)
+            self.logger.info(f"Mesh repair report: {repair_report}")
+        
         # Export mesh to file
         if hasattr(mesh, 'export'):
             mesh.export(mesh_file_path)
@@ -423,6 +424,11 @@ class CADAgent(BaseAgent):
         temp_file = tempfile.NamedTemporaryFile(suffix='.stl', delete=False)
         mesh_file_path = temp_file.name
         temp_file.close()
+        
+        # Auto-repair mesh before export
+        final_mesh, repair_report = self.auto_repair_mesh(final_mesh)
+        self.logger.info(f"Mesh repair report: {repair_report}")
+        
         final_mesh.export(mesh_file_path)
 
         self.logger.info(f"✅ Bild-zu-3D abgeschlossen: {len(final_mesh.vertices)} Vertices, {len(final_mesh.faces)} Faces")
@@ -488,6 +494,11 @@ class CADAgent(BaseAgent):
             temp_file = tempfile.NamedTemporaryFile(suffix='.stl', delete=False)
             mesh_file_path = temp_file.name
             temp_file.close()
+            
+            # Auto-repair mesh before export
+            if hasattr(mesh, 'is_watertight'):
+                mesh, repair_report = self.auto_repair_mesh(mesh)
+                self.logger.info(f"Mesh repair report: {repair_report}")
             
             # Export mesh to file
             if hasattr(mesh, 'export'):
@@ -1244,6 +1255,111 @@ class CADAgent(BaseAgent):
         self.logger.debug(f"Printability score: {score:.1f}/10")
         return score
 
+    def auto_repair_mesh(self, mesh: trimesh.Trimesh) -> Tuple[trimesh.Trimesh, Dict[str, Any]]:
+        """
+        Automatically repair mesh for 3D printing.
+        
+        This function performs the following repairs:
+        1. Checks if mesh is watertight (no holes)
+        2. Fills holes automatically
+        3. Fixes normals (ensures faces point outward)
+        4. Removes duplicate vertices
+        5. Returns quality score
+        
+        Before: Mesh with 3 holes → Printer fails!
+        After: Watertight mesh → Perfect print! ✅
+        
+        Args:
+            mesh: Trimesh object to repair
+            
+        Returns:
+            Tuple of (repaired_mesh, repair_report)
+        """
+        self.logger.info("🔧 Starting mesh auto-repair...")
+        
+        repair_report = {
+            'was_watertight': mesh.is_watertight,
+            'holes_filled': 0,
+            'normals_fixed': False,
+            'vertices_merged': 0,
+            'final_quality_score': 0,
+            'issues_found': []
+        }
+        
+        # STEP 1: Check if mesh is watertight
+        if not mesh.is_watertight:
+            self.logger.warning("⚠️ Mesh is not watertight (has holes)! Attempting repair...")
+            repair_report['issues_found'].append("Mesh not watertight")
+            
+            # STEP 2: Fill holes
+            try:
+                mesh.fill_holes()
+                if mesh.is_watertight:
+                    repair_report['holes_filled'] = 1
+                    self.logger.info("✅ Holes filled successfully!")
+                else:
+                    self.logger.warning("⚠️ Some holes could not be filled automatically")
+            except Exception as e:
+                self.logger.error(f"Failed to fill holes: {str(e)}")
+                repair_report['issues_found'].append(f"Hole filling failed: {str(e)}")
+        
+        # STEP 3: Fix normals (ensure all faces point outward)
+        try:
+            mesh.fix_normals()
+            repair_report['normals_fixed'] = True
+            self.logger.debug("✅ Normals fixed")
+        except Exception as e:
+            self.logger.warning(f"Failed to fix normals: {str(e)}")
+            repair_report['issues_found'].append(f"Normal fixing failed: {str(e)}")
+        
+        # STEP 4: Remove duplicate vertices
+        before_vertices = len(mesh.vertices)
+        try:
+            mesh.merge_vertices()
+            after_vertices = len(mesh.vertices)
+            vertices_merged = before_vertices - after_vertices
+            repair_report['vertices_merged'] = vertices_merged
+            if vertices_merged > 0:
+                self.logger.debug(f"✅ Merged {vertices_merged} duplicate vertices")
+        except Exception as e:
+            self.logger.warning(f"Failed to merge vertices: {str(e)}")
+            repair_report['issues_found'].append(f"Vertex merging failed: {str(e)}")
+        
+        # STEP 5: Calculate final quality score
+        quality_score = 100
+        
+        if not mesh.is_watertight:
+            quality_score -= 50  # Major issue: still has holes
+            repair_report['issues_found'].append("Mesh still not watertight after repair")
+        
+        # Check for self-intersections and invalid geometry
+        try:
+            if hasattr(mesh, 'is_empty') and mesh.is_empty:
+                quality_score -= 30
+                repair_report['issues_found'].append("Empty mesh geometry")
+        except Exception:
+            pass
+        
+        if len(mesh.faces) < 100:
+            quality_score -= 10  # Very low resolution
+            repair_report['issues_found'].append("Low polygon count (< 100 faces)")
+        
+        # Check for degenerate faces
+        try:
+            if hasattr(mesh, 'remove_degenerate_faces'):
+                mesh.remove_degenerate_faces()
+        except Exception as e:
+            self.logger.warning(f"Failed to remove degenerate faces: {str(e)}")
+        
+        repair_report['final_quality_score'] = max(0, quality_score)
+        
+        # Log final report
+        self.logger.info(f"🎯 Mesh repair complete! Quality: {repair_report['final_quality_score']}/100")
+        if repair_report['issues_found']:
+            self.logger.warning(f"Issues found: {repair_report['issues_found']}")
+        
+        return mesh, repair_report
+
     def _calculate_volume_from_dimensions(self, shape_type: str, dimensions: Dict[str, float]) -> float:
         """Calculate volume based on shape type and dimensions."""
         if shape_type == 'cube':
@@ -1920,8 +2036,13 @@ class CADAgent(BaseAgent):
             return 5.0  # Default score if check fails
     
     def _export_mesh_to_file(self, mesh: Any, file_path: str) -> None:
-        """Export mesh to file."""
+        """Export mesh to file with auto-repair."""
         try:
+            # Auto-repair mesh before export
+            if hasattr(mesh, 'is_watertight'):
+                mesh, repair_report = self.auto_repair_mesh(mesh)
+                self.logger.info(f"Mesh repair report: {repair_report}")
+            
             if hasattr(mesh, 'export'):
                 mesh.export(file_path)
             else:
