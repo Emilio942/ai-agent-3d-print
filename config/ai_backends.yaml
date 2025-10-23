@@ -1,0 +1,80 @@
+# AI 3D Generation Backend Configuration
+# AI Agent 3D Print System
+
+# Select which AI backend to use for 3D generation
+# Options: local_depth, mock_cloud, or any custom registered backend
+ai_3d_backend:
+  # Active backend (change this to switch AI providers)
+  active: "local_depth"  # Options: local_depth, mock_cloud, replicate_shap_e, meshy_ai, etc.
+  
+  # Fallback backend if primary fails
+  fallback: "local_depth"
+  
+  # Backend-specific configurations
+  backends:
+    # Local Depth Estimation (default, free, runs locally)
+    local_depth:
+      enabled: true
+      config:
+        default_resolution: [256, 256]
+        max_resolution: [1024, 1024]
+        default_depth_scale: 1.0
+        default_extrusion_height: 10.0
+        enable_smoothing: true
+    
+    # Mock Cloud Backend (template for real APIs)
+    mock_cloud:
+      enabled: false
+      config:
+        api_key: ""  # Set your API key here
+        endpoint: "https://api.example.com"
+        timeout: 120
+    
+    # Example: Replicate Shap-E (uncomment when implemented)
+    # replicate_shap_e:
+    #   enabled: false
+    #   config:
+    #     api_token: ""  # Get from https://replicate.com/account/api-tokens
+    #     model_version: "latest"
+    #     num_inference_steps: 64
+    
+    # Example: Meshy.ai (uncomment when implemented)
+    # meshy_ai:
+    #   enabled: false
+    #   config:
+    #     api_key: ""  # Get from https://meshy.ai
+    #     art_style: "realistic"  # realistic, cartoon, etc.
+    #     quality: "high"  # high, medium, low
+    
+    # Example: OpenAI (uncomment when available)
+    # openai_3d:
+    #   enabled: false
+    #   config:
+    #     api_key: ""  # Your OpenAI API key
+    #     model: "gpt-4-3d"  # Hypothetical future model
+    #     quality: "high"
+
+# Global 3D generation settings
+generation:
+  # Auto-select best backend based on task complexity
+  auto_select: false
+  
+  # Cache generated models
+  enable_cache: true
+  cache_dir: "cache/ai_3d_models"
+  
+  # Quality vs Speed tradeoff
+  prefer_quality: true  # false = faster, lower quality
+  
+  # Maximum generation time (seconds)
+  max_generation_time: 300
+  
+  # Retry settings
+  max_retries: 3
+  retry_delay: 5
+
+# Backend auto-discovery
+auto_discovery:
+  # Automatically discover and register backends from plugins directory
+  enabled: true
+  plugins_dir: "plugins/ai_backends"
