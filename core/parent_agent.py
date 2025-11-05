@@ -10,9 +10,8 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Dict, List, Optional, Set, Any, Callable, Awaitable, Union
+from typing import Dict, List, Optional, Set, Any, Callable, Awaitable
 from contextlib import asynccontextmanager
-import re  # for file path extraction
 
 try:  # Prefer package-relative imports but fall back for legacy direct usage
     from .base_agent import BaseAgent

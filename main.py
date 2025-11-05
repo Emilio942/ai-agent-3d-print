@@ -20,9 +20,9 @@ project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
 # Core system imports
-from core.parent_agent import ParentAgent, WorkflowState
+from core.parent_agent import ParentAgent
 from core.logger import get_logger
-from core.exceptions import WorkflowError, ValidationError
+from core.exceptions import WorkflowError
 from agents.research_agent import ResearchAgent
 from agents.cad_agent import CADAgent
 from agents.slicer_agent import SlicerAgent
