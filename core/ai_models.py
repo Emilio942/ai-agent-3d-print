@@ -134,7 +134,7 @@ class BaseAIModel(ABC):
         pass
     
     @abstractmethod
-    def validate_connection(self) -> bool:
+    async def validate_connection(self) -> bool:
         """
         Validate that the AI model can be reached and is properly configured.
         
@@ -309,7 +309,7 @@ class SpacyTransformersModel(BaseAIModel):
                 error=str(e)
             )
     
-    def validate_connection(self) -> bool:
+    async def validate_connection(self) -> bool:
         """Validate spaCy model availability."""
         return self.nlp is not None
 
@@ -526,7 +526,7 @@ Respond with JSON format:
                 error=str(e)
             )
     
-    def validate_connection(self) -> bool:
+    async def validate_connection(self) -> bool:
         """Validate OpenAI connection."""
         if not self.config.api_key:
             return False
@@ -536,9 +536,10 @@ Respond with JSON format:
 
         try:
             if self._client_is_async:
-                _run_async(self.client.models.list())
+                await self.client.models.list()
             else:
-                self.client.models.list()
+                # Run sync client in thread pool
+                await asyncio.to_thread(self.client.models.list)
             return True
         except Exception as e:
             self.logger.error(f"OpenAI connection validation failed: {e}")
@@ -788,7 +789,7 @@ Respond only with valid JSON:
                 error=str(e)
             )
     
-    def validate_connection(self) -> bool:
+    async def validate_connection(self) -> bool:
         """Validate Anthropic connection."""
         if not self.config.api_key:
             return False
@@ -809,9 +810,10 @@ Respond only with valid JSON:
                 raise AttributeError("Anthropic client missing 'messages' attribute")
 
             if self._client_is_async:
-                _run_async(self.client.messages.create(**kwargs))
+                await self.client.messages.create(**kwargs)
             else:
-                self.client.messages.create(**kwargs)
+                # Run sync client in thread pool
+                await asyncio.to_thread(self.client.messages.create, **kwargs)
 
             return True
         except Exception as e:

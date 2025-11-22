@@ -143,7 +143,6 @@ class TestMiddlewarePerformance:
         # Measure baseline
         request = Mock(spec=Request)
         request.method = "GET"
-        request.url.path = "/test"
         request.url = Mock()
         request.url.path = "/test"
         request.query_params = {}

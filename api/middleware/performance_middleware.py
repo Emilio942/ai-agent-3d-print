@@ -31,22 +31,6 @@ class PerformanceMiddleware(BaseHTTPMiddleware):
         self.request_counter = 0
         self.error_counter = 0
         self._last_cpu_usage = 0.0
-        self._cpu_update_task = None
-        
-        # Start background CPU monitoring
-        self._start_cpu_monitoring()
-    
-    def _start_cpu_monitoring(self):
-        """Start background task to monitor CPU usage efficiently"""
-        async def update_cpu():
-            while True:
-                # Update CPU usage every 2 seconds in background
-                self._last_cpu_usage = psutil.cpu_percent(interval=1)
-                await asyncio.sleep(1)
-        
-        # Note: This will be started when the app starts up
-        # For now, we'll use on-demand measurement with a small interval
-        pass
     
     async def dispatch(self, request: Request, call_next) -> Response:
         """Main middleware dispatch method"""
