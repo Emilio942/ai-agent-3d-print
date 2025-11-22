@@ -269,8 +269,9 @@ class MeshyAIBackend(BaseAI3DBackend):
                     mesh_url = status['model_urls']['glb']
                     mesh = trimesh.load(mesh_url)
                     return {'mesh': mesh, 'success': True}
-            
-            await asyncio.sleep(5)
+                
+                # Wait before polling again
+                await asyncio.sleep(5)
 
 
 EXAMPLE 3: OpenAI (Future)
