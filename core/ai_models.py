@@ -539,7 +539,7 @@ Respond with JSON format:
                 await self.client.models.list()
             else:
                 # Run sync client in thread pool
-                await asyncio.to_thread(self.client.models.list)
+                await asyncio.to_thread(lambda: self.client.models.list())
             return True
         except Exception as e:
             self.logger.error(f"OpenAI connection validation failed: {e}")
@@ -813,7 +813,7 @@ Respond only with valid JSON:
                 await self.client.messages.create(**kwargs)
             else:
                 # Run sync client in thread pool
-                await asyncio.to_thread(self.client.messages.create, **kwargs)
+                await asyncio.to_thread(lambda: self.client.messages.create(**kwargs))
 
             return True
         except Exception as e:
