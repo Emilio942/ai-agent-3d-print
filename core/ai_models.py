@@ -826,11 +826,24 @@ class LocalLlamaModel(BaseAIModel):
         super().__init__(config)
         self.model_name = self.config.model_name or "llama2"
         self.api_base = self.config.api_base or "http://localhost:11434"
+        self._client = None
+        
+    async def _get_client(self):
+        """Get or create a reusable httpx client for better connection pooling."""
+        if self._client is None:
+            import httpx
+            self._client = httpx.AsyncClient(timeout=self.config.timeout)
+        return self._client
+    
+    async def close(self):
+        """Close the httpx client to cleanup resources."""
+        if self._client is not None:
+            await self._client.aclose()
+            self._client = None
         
     async def process_intent(self, user_input: str, context: Dict[str, Any] = None) -> AIResponse:
         """Process intent using local Llama model."""
         import time
-        import httpx
         start_time = time.time()
         
         try:
@@ -850,19 +863,19 @@ Respond with JSON:
 
 <|assistant|>"""
             
-            async with httpx.AsyncClient(timeout=self.config.timeout) as client:
-                response = await client.post(
-                    f"{self.api_base}/api/generate",
-                    json={
-                        "model": self.model_name,
-                        "prompt": prompt,
-                        "stream": False,
-                        "options": {
-                            "temperature": self.config.temperature,
-                            "num_predict": self.config.max_tokens
-                        }
+            client = await self._get_client()
+            response = await client.post(
+                f"{self.api_base}/api/generate",
+                json={
+                    "model": self.model_name,
+                    "prompt": prompt,
+                    "stream": False,
+                    "options": {
+                        "temperature": self.config.temperature,
+                        "num_predict": self.config.max_tokens
                     }
-                )
+                }
+            )
 
             if response.status_code == 200:
                 result = response.json()
@@ -899,7 +912,6 @@ Respond with JSON:
     async def enhance_research(self, query: str, context: Dict[str, Any] = None) -> AIResponse:
         """Enhance research using local Llama model."""
         import time
-        import httpx
         start_time = time.time()
         
         try:
@@ -918,19 +930,19 @@ Enhance this 3D printing search: {query}
 
 <|assistant|>"""
             
-            async with httpx.AsyncClient(timeout=self.config.timeout) as client:
-                response = await client.post(
-                    f"{self.api_base}/api/generate",
-                    json={
-                        "model": self.model_name,
-                        "prompt": prompt,
-                        "stream": False,
-                        "options": {
-                            "temperature": self.config.temperature,
-                            "num_predict": self.config.max_tokens
-                        }
+            client = await self._get_client()
+            response = await client.post(
+                f"{self.api_base}/api/generate",
+                json={
+                    "model": self.model_name,
+                    "prompt": prompt,
+                    "stream": False,
+                    "options": {
+                        "temperature": self.config.temperature,
+                        "num_predict": self.config.max_tokens
                     }
-                )
+                }
+            )
 
             if response.status_code == 200:
                 result = response.json()
@@ -961,6 +973,7 @@ Enhance this 3D printing search: {query}
         """Validate local Llama connection asynchronously."""
         try:
             import httpx
+            # Use a separate client for validation to avoid timeout issues
             async with httpx.AsyncClient(timeout=5.0) as client:
                 try:
                     response = await client.get(f"{self.api_base}/")
