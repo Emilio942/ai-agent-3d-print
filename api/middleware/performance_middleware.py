@@ -30,15 +30,15 @@ class PerformanceMiddleware(BaseHTTPMiddleware):
         self.enable_caching = enable_caching
         self.request_counter = 0
         self.error_counter = 0
+        self._last_cpu_usage = 0.0
     
     async def dispatch(self, request: Request, call_next) -> Response:
         """Main middleware dispatch method"""
         start_time = time.time()
         self.request_counter += 1
         
-        # Get initial system stats
+        # Get initial system stats (removed CPU check to avoid blocking)
         initial_memory = psutil.virtual_memory().percent
-        initial_cpu = psutil.cpu_percent(interval=None)
         
         try:
             # Check if this is a cacheable GET request
@@ -66,7 +66,8 @@ class PerformanceMiddleware(BaseHTTPMiddleware):
             # Calculate performance metrics
             processing_time = time.time() - start_time
             final_memory = psutil.virtual_memory().percent
-            final_cpu = psutil.cpu_percent(interval=None)
+            # Use cached CPU value to avoid blocking - more efficient
+            final_cpu = self._last_cpu_usage if self._last_cpu_usage > 0 else psutil.cpu_percent(interval=0)
             
             # Add performance headers
             response.headers["X-Process-Time"] = str(processing_time)
@@ -115,7 +116,7 @@ class PerformanceMiddleware(BaseHTTPMiddleware):
             await self._record_performance_metrics(
                 processing_time, 
                 psutil.virtual_memory().percent,
-                psutil.cpu_percent(interval=None),
+                self._last_cpu_usage if self._last_cpu_usage > 0 else psutil.cpu_percent(interval=0),
                 500
             )
             

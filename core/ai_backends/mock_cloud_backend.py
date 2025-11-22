@@ -241,34 +241,37 @@ EXAMPLE 2: Meshy.ai
 @register_backend('meshy_ai')
 class MeshyAIBackend(BaseAI3DBackend):
     async def text_to_3d(self, prompt, params=None):
-        import requests
+        import httpx
         
-        # Create task
-        response = requests.post(
-            "https://api.meshy.ai/v2/text-to-3d",
-            headers={"Authorization": f"Bearer {self.api_key}"},
-            json={
-                "prompt": prompt,
-                "art_style": "realistic",
-                "negative_prompt": "low quality"
-            }
-        )
-        
-        task_id = response.json()['result']
-        
-        # Poll for completion
-        while True:
-            status = requests.get(
-                f"https://api.meshy.ai/v2/text-to-3d/{task_id}",
-                headers={"Authorization": f"Bearer {self.api_key}"}
-            ).json()
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            # Create task
+            response = await client.post(
+                "https://api.meshy.ai/v2/text-to-3d",
+                headers={"Authorization": f"Bearer {self.api_key}"},
+                json={
+                    "prompt": prompt,
+                    "art_style": "realistic",
+                    "negative_prompt": "low quality"
+                }
+            )
             
-            if status['status'] == 'SUCCEEDED':
-                mesh_url = status['model_urls']['glb']
-                mesh = trimesh.load(mesh_url)
-                return {'mesh': mesh, 'success': True}
+            task_id = response.json()['result']
             
-            await asyncio.sleep(5)
+            # Poll for completion
+            while True:
+                status_response = await client.get(
+                    f"https://api.meshy.ai/v2/text-to-3d/{task_id}",
+                    headers={"Authorization": f"Bearer {self.api_key}"}
+                )
+                status = status_response.json()
+                
+                if status['status'] == 'SUCCEEDED':
+                    mesh_url = status['model_urls']['glb']
+                    mesh = trimesh.load(mesh_url)
+                    return {'mesh': mesh, 'success': True}
+                
+                # Wait before polling again
+                await asyncio.sleep(5)
 
 
 EXAMPLE 3: OpenAI (Future)

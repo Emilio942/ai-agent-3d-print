@@ -134,7 +134,7 @@ class BaseAIModel(ABC):
         pass
     
     @abstractmethod
-    def validate_connection(self) -> bool:
+    async def validate_connection(self) -> bool:
         """
         Validate that the AI model can be reached and is properly configured.
         
@@ -309,7 +309,7 @@ class SpacyTransformersModel(BaseAIModel):
                 error=str(e)
             )
     
-    def validate_connection(self) -> bool:
+    async def validate_connection(self) -> bool:
         """Validate spaCy model availability."""
         return self.nlp is not None
 
@@ -526,7 +526,7 @@ Respond with JSON format:
                 error=str(e)
             )
     
-    def validate_connection(self) -> bool:
+    async def validate_connection(self) -> bool:
         """Validate OpenAI connection."""
         if not self.config.api_key:
             return False
@@ -536,9 +536,10 @@ Respond with JSON format:
 
         try:
             if self._client_is_async:
-                _run_async(self.client.models.list())
+                await self.client.models.list()
             else:
-                self.client.models.list()
+                # Run sync client in thread pool
+                await asyncio.to_thread(self.client.models.list)
             return True
         except Exception as e:
             self.logger.error(f"OpenAI connection validation failed: {e}")
@@ -788,7 +789,7 @@ Respond only with valid JSON:
                 error=str(e)
             )
     
-    def validate_connection(self) -> bool:
+    async def validate_connection(self) -> bool:
         """Validate Anthropic connection."""
         if not self.config.api_key:
             return False
@@ -809,9 +810,10 @@ Respond only with valid JSON:
                 raise AttributeError("Anthropic client missing 'messages' attribute")
 
             if self._client_is_async:
-                _run_async(self.client.messages.create(**kwargs))
+                await self.client.messages.create(**kwargs)
             else:
-                self.client.messages.create(**kwargs)
+                # Run sync client in thread pool
+                await asyncio.to_thread(lambda: self.client.messages.create(**kwargs))
 
             return True
         except Exception as e:
@@ -826,11 +828,24 @@ class LocalLlamaModel(BaseAIModel):
         super().__init__(config)
         self.model_name = self.config.model_name or "llama2"
         self.api_base = self.config.api_base or "http://localhost:11434"
+        self._client = None
+        
+    async def _get_client(self):
+        """Get or create a reusable httpx client for better connection pooling."""
+        if self._client is None:
+            import httpx
+            self._client = httpx.AsyncClient(timeout=self.config.timeout)
+        return self._client
+    
+    async def close(self):
+        """Close the httpx client to cleanup resources."""
+        if self._client is not None:
+            await self._client.aclose()
+            self._client = None
         
     async def process_intent(self, user_input: str, context: Dict[str, Any] = None) -> AIResponse:
         """Process intent using local Llama model."""
         import time
-        import requests
         start_time = time.time()
         
         try:
@@ -850,8 +865,8 @@ Respond with JSON:
 
 <|assistant|>"""
             
-            response = await asyncio.to_thread(
-                requests.post,
+            client = await self._get_client()
+            response = await client.post(
                 f"{self.api_base}/api/generate",
                 json={
                     "model": self.model_name,
@@ -861,8 +876,7 @@ Respond with JSON:
                         "temperature": self.config.temperature,
                         "num_predict": self.config.max_tokens
                     }
-                },
-                timeout=self.config.timeout
+                }
             )
 
             if response.status_code == 200:
@@ -900,7 +914,6 @@ Respond with JSON:
     async def enhance_research(self, query: str, context: Dict[str, Any] = None) -> AIResponse:
         """Enhance research using local Llama model."""
         import time
-        import requests
         start_time = time.time()
         
         try:
@@ -919,8 +932,8 @@ Enhance this 3D printing search: {query}
 
 <|assistant|>"""
             
-            response = await asyncio.to_thread(
-                requests.post,
+            client = await self._get_client()
+            response = await client.post(
                 f"{self.api_base}/api/generate",
                 json={
                     "model": self.model_name,
@@ -930,8 +943,7 @@ Enhance this 3D printing search: {query}
                         "temperature": self.config.temperature,
                         "num_predict": self.config.max_tokens
                     }
-                },
-                timeout=self.config.timeout
+                }
             )
 
             if response.status_code == 200:
@@ -959,26 +971,30 @@ Enhance this 3D printing search: {query}
                 error=str(e)
             )
     
-    def validate_connection(self) -> bool:
-        """Validate local Llama connection."""
+    async def validate_connection(self) -> bool:
+        """Validate local Llama connection asynchronously."""
         try:
-            import requests
-            response = requests.get(f"{self.api_base}/", timeout=5)
-            if response.status_code == 200:
-                return True
+            import httpx
+            # Use a separate client for validation to avoid timeout issues
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                try:
+                    response = await client.get(f"{self.api_base}/")
+                    if response.status_code == 200:
+                        return True
+                except:
+                    pass
 
-            # Fallback simple generation check
-            response = requests.post(
-                f"{self.api_base}/api/generate",
-                json={
-                    "model": self.model_name,
-                    "prompt": "Hello",
-                    "stream": False,
-                    "options": {"num_predict": 1}
-                },
-                timeout=5
-            )
-            return response.status_code == 200
+                # Fallback simple generation check
+                response = await client.post(
+                    f"{self.api_base}/api/generate",
+                    json={
+                        "model": self.model_name,
+                        "prompt": "Hello",
+                        "stream": False,
+                        "options": {"num_predict": 1}
+                    }
+                )
+                return response.status_code == 200
         except Exception as e:
             self.logger.error(f"Local Llama connection validation failed: {e}")
             return False
