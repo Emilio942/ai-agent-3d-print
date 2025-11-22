@@ -830,7 +830,7 @@ class LocalLlamaModel(BaseAIModel):
     async def process_intent(self, user_input: str, context: Dict[str, Any] = None) -> AIResponse:
         """Process intent using local Llama model."""
         import time
-        import requests
+        import httpx
         start_time = time.time()
         
         try:
@@ -850,20 +850,19 @@ Respond with JSON:
 
 <|assistant|>"""
             
-            response = await asyncio.to_thread(
-                requests.post,
-                f"{self.api_base}/api/generate",
-                json={
-                    "model": self.model_name,
-                    "prompt": prompt,
-                    "stream": False,
-                    "options": {
-                        "temperature": self.config.temperature,
-                        "num_predict": self.config.max_tokens
+            async with httpx.AsyncClient(timeout=self.config.timeout) as client:
+                response = await client.post(
+                    f"{self.api_base}/api/generate",
+                    json={
+                        "model": self.model_name,
+                        "prompt": prompt,
+                        "stream": False,
+                        "options": {
+                            "temperature": self.config.temperature,
+                            "num_predict": self.config.max_tokens
+                        }
                     }
-                },
-                timeout=self.config.timeout
-            )
+                )
 
             if response.status_code == 200:
                 result = response.json()
@@ -900,7 +899,7 @@ Respond with JSON:
     async def enhance_research(self, query: str, context: Dict[str, Any] = None) -> AIResponse:
         """Enhance research using local Llama model."""
         import time
-        import requests
+        import httpx
         start_time = time.time()
         
         try:
@@ -919,20 +918,19 @@ Enhance this 3D printing search: {query}
 
 <|assistant|>"""
             
-            response = await asyncio.to_thread(
-                requests.post,
-                f"{self.api_base}/api/generate",
-                json={
-                    "model": self.model_name,
-                    "prompt": prompt,
-                    "stream": False,
-                    "options": {
-                        "temperature": self.config.temperature,
-                        "num_predict": self.config.max_tokens
+            async with httpx.AsyncClient(timeout=self.config.timeout) as client:
+                response = await client.post(
+                    f"{self.api_base}/api/generate",
+                    json={
+                        "model": self.model_name,
+                        "prompt": prompt,
+                        "stream": False,
+                        "options": {
+                            "temperature": self.config.temperature,
+                            "num_predict": self.config.max_tokens
+                        }
                     }
-                },
-                timeout=self.config.timeout
-            )
+                )
 
             if response.status_code == 200:
                 result = response.json()
@@ -959,26 +957,29 @@ Enhance this 3D printing search: {query}
                 error=str(e)
             )
     
-    def validate_connection(self) -> bool:
-        """Validate local Llama connection."""
+    async def validate_connection(self) -> bool:
+        """Validate local Llama connection asynchronously."""
         try:
-            import requests
-            response = requests.get(f"{self.api_base}/", timeout=5)
-            if response.status_code == 200:
-                return True
+            import httpx
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                try:
+                    response = await client.get(f"{self.api_base}/")
+                    if response.status_code == 200:
+                        return True
+                except:
+                    pass
 
-            # Fallback simple generation check
-            response = requests.post(
-                f"{self.api_base}/api/generate",
-                json={
-                    "model": self.model_name,
-                    "prompt": "Hello",
-                    "stream": False,
-                    "options": {"num_predict": 1}
-                },
-                timeout=5
-            )
-            return response.status_code == 200
+                # Fallback simple generation check
+                response = await client.post(
+                    f"{self.api_base}/api/generate",
+                    json={
+                        "model": self.model_name,
+                        "prompt": "Hello",
+                        "stream": False,
+                        "options": {"num_predict": 1}
+                    }
+                )
+                return response.status_code == 200
         except Exception as e:
             self.logger.error(f"Local Llama connection validation failed: {e}")
             return False
